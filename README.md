@@ -86,7 +86,7 @@ of device, cycle counters and ammeters are the correct instruments.
 | WeAct Studio STM32H750VBT6 | Cortex-M7 @ 480MHz, 1MB SRAM, 8MB QSPI flash | Main inference engine |
 | OV2640 camera (onboard) | DCMI interface | Live image capture |
 | 0.86" TFT display (onboard) | SPI | Bounding box + gate status display |
-| Waveshare RP2350-ONE | Dual Cortex-M33 @ 150MHz, 520KB SRAM | Always-on pre-screen + output controller |
+| RP2350-USB Mini (16MB flash) | Dual Cortex-M33 @ 150MHz, 520KB SRAM | Always-on pre-screen + output controller |
 | PIR sensor HC-SR501 | 3–7m range | Level-1 motion pre-screen |
 | Servo motor SG90 | 180° | Physical response to detection |
 
@@ -98,9 +98,12 @@ STM32H750  PA10 (UART1 RX)  ◀──────  RP2350 GP0  (UART0 TX)
 STM32H750  PC0  (EXTI wake) ◀──────  RP2350 GP15 (GPIO OUT)
 STM32H750  GND              ─────┬─  RP2350 GND
                                  └─  PIR GND
-PIR        OUT              ──────▶  RP2350 GP16 (EXTI)
-RP2350     GP18             ──────▶  Servo signal
+PIR        OUT              ──────▶  RP2350 GP14 (IRQ)
+RP2350     GP2              ──────▶  Servo signal
 ```
+
+Pin choices are constrained by the mini board's breakout (GP16–19 are not
+exposed): see [docs/hardware/rp2350-usb-mini-pinout.jpg](docs/hardware/rp2350-usb-mini-pinout.jpg).
 
 ---
 
@@ -289,13 +292,16 @@ kestrel/
 │   │   ├── hw_interpolator_resize.c# ← INTERP bilinear + bit-exact SW baseline
 │   │   └── interp_resize_bench.c   # On-device HW-vs-SW benchmark
 │   ├── test/                       # Host-runnable resize tests
+│   ├── arduino/kestrel_rp2350/     # Arduino IDE version of the firmware
 │   └── CMakeLists.txt
 │
 ├── training/                       # Model selection + optional retrain path
 ├── benchmarks/                     # CSV results + benchmark_report.md (methodology)
 ├── docs/
+│   ├── day1_cubeide_bringup.md     # Getting the camera running, step by step
 │   ├── gate_module_guide.md        # STM32 pipeline integration + STOP mode
-│   └── rp2350_interpolator_guide.md
+│   ├── rp2350_interpolator_guide.md
+│   └── hardware/                   # Board pinout references
 ├── .github/workflows/host-tests.yml# CI: host tests + Cortex-M cross-compile
 ├── LICENSE                         # MIT
 └── README.md
@@ -341,16 +347,24 @@ Build All (Ctrl+B), then Run → Debug (F11). Weights are placed in memory-mappe
 by the linker script; verify the map file shows activations in AXI SRAM with room for the
 two 19KB grayscale gate buffers.
 
-### Step 4: Build and flash the RP2350-ONE
+### Step 4: Build and flash the RP2350
+
+**Option A, pico-sdk (CMake):**
 
 ```bash
 cd rp2350
 mkdir build && cd build
-cmake .. -DPICO_SDK_PATH=/path/to/pico-sdk -DPICO_BOARD=waveshare_rp2350_one
+cmake .. -DPICO_SDK_PATH=/path/to/pico-sdk -DPICO_BOARD=pico2
 make -j4
 ```
 
-Hold **BOOTSEL**, connect USB, copy `kestrel_rp2350.uf2` to the `RPI-RP2` drive.
+Hold **BOOT**, connect USB, copy `kestrel_rp2350.uf2` to the `RP2350` drive.
+
+**Option B, Arduino IDE:** open
+[`rp2350/arduino/kestrel_rp2350/kestrel_rp2350.ino`](rp2350/arduino/kestrel_rp2350/kestrel_rp2350.ino)
+with the [arduino-pico core](https://github.com/earlephilhower/arduino-pico)
+installed; board "Generic RP2350", Flash Size 16MB. Functionally identical
+to the pico-sdk firmware.
 
 ### Step 5: Validate
 
