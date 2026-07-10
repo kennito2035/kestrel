@@ -28,6 +28,10 @@ training/dataset/coco/
 *.onnx
 *.h5
 
+# Vendor reference material (WeAct SDK etc.), kept locally, not committed:
+# large binaries with their own licensing; see docs/day1_cubeide_bringup.md
+third_party/
+
 # Host test artifacts
 modules/motion_gate/test/test_gate
 modules/motion_gate/test/results.csv
