@@ -1,0 +1,38 @@
+name: host-tests
+on:
+  push:
+  pull_request:
+
+jobs:
+  gate-and-resize:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build and run motion gate tests
+        working-directory: modules/motion_gate/test
+        run: |
+          gcc -std=c99 -Wall -Wextra -Werror -O2 -o test_gate test_gate.c ../gate.c
+          ./test_gate
+          python3 golden.py
+
+      - name: Build and run resize tests (software path)
+        working-directory: rp2350/test
+        run: |
+          gcc -std=c99 -DKESTREL_HOST_BUILD -Wall -Wextra -Werror -O2 \
+              -o test_resize test_resize.c ../src/hw_interpolator_resize.c -lm
+          ./test_resize
+
+  cross-compile-cortex-m:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Arm GNU toolchain
+        run: sudo apt-get update && sudo apt-get install -y gcc-arm-none-eabi
+
+      - name: Gate module compiles for Cortex-M7 and M33 (SIMD path)
+        run: |
+          arm-none-eabi-gcc -std=c99 -mcpu=cortex-m7 -mthumb -DKESTREL_GATE_SIMD=1 \
+              -Wall -Wextra -Werror -O2 -c modules/motion_gate/gate.c -o /tmp/gate_m7.o
+          arm-none-eabi-gcc -std=c99 -mcpu=cortex-m33 -mthumb -DKESTREL_GATE_SIMD=1 \
+              -Wall -Wextra -Werror -O2 -c modules/motion_gate/gate.c -o /tmp/gate_m33.o

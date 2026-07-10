@@ -28,6 +28,11 @@ training/dataset/coco/
 *.onnx
 *.h5
 
+# Host test artifacts
+modules/motion_gate/test/test_gate
+modules/motion_gate/test/results.csv
+rp2350/test/test_resize
+
 # OS
 Thumbs.db
 .DS_Store
