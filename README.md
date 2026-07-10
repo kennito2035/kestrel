@@ -61,6 +61,17 @@ full inference.
   submission) a DWT cycle-counter or ammeter measurement, logged to CSV in
   [`benchmarks/`](benchmarks/), with the exact harness code included. No projected numbers.
 
+### Physical AI track fit
+
+Kestrel is a complete **sense → decide → act** loop under real power constraints:
+
+| Track pillar | Where Kestrel delivers it |
+|---|---|
+| Deterministic real-time performance | Bare-metal, no OS, no scheduler jitter; fixed-cost gate and inference paths; we report **p95 latencies**, not just averages |
+| Efficient, scalable compute | Three-level attention cascade, each watcher orders of magnitude cheaper than the next; average compute scales with scene activity |
+| Heterogeneous workloads | Cortex-M7 runs perception/inference; dual Cortex-M33 handles the always-on sensing and motor control, each core class doing what it's most efficient at |
+| Reliability | Gate failure mode is fail-open (unrecognized states run full inference); PIR provides an inference-independent wake path |
+
 ---
 
 ## Measurement Methodology: A Note on Honesty
