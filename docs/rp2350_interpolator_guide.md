@@ -17,12 +17,15 @@ cycle after the inputs are written:
 PEEK1 = BASE0 + (((BASE1 - BASE0) * (ACCUM1 & 0xFF)) >> 8)
 ```
 
-Two things it does **not** do, which trip people up:
+Three things it does **not** do, which trip people up:
 
 1. **It does not walk memory.** BASE0/BASE1 are pixel *values* you load,
    not pointers it dereferences. Your loop still does the address math and
    the loads.
-2. **Alpha is 8-bit and cannot express 1.0** (max 255/256). Far-edge
+2. **Blend mode exists on INTERP0 only.** INTERP1 has clamp mode instead
+   (datasheet §3.1.10, same split as the RP2040). You cannot run two blends
+   in parallel on one core.
+3. **Alpha is 8-bit and cannot express 1.0** (max 255/256). Far-edge
    samples land up to 1 LSB below the exact source pixel. For ML inputs
    (which get quantized to INT8 anyway) this is irrelevant, but it is why
    our tests assert ≤3 LSB total error vs a float reference rather than
@@ -32,16 +35,16 @@ Two things it does **not** do, which trip people up:
 
 Bilinear needs three lerps per output pixel: top pixel pair, bottom pixel
 pair (both with the X fraction), then those two results with the Y fraction.
-We put the two X-lerps on INTERP0 and INTERP1 and keep the final Y-lerp in
-software:
+Since only INTERP0 can blend, it does the two X-lerps back-to-back (the
+result is combinatorial, valid immediately after the writes), and the final
+Y-lerp stays in software:
 
 ```c
+interp0->accum[1] = fx;                                  /* X fraction  */
 interp0->base[0] = row0[sx];  interp0->base[1] = row0[sx1];
-interp0->accum[1] = fx;
-interp1->base[0] = row1[sx];  interp1->base[1] = row1[sx1];
-interp1->accum[1] = fx;
-uint8_t top = interp0->peek[1];
-uint8_t bot = interp1->peek[1];
+uint8_t top = interp0->peek[1];                          /* top lerp    */
+interp0->base[0] = row1[sx];  interp0->base[1] = row1[sx1];
+uint8_t bot = interp0->peek[1];                          /* bottom lerp */
 dst[..] = blend8(top, bot, fy);   /* same equation, in software */
 ```
 
