@@ -85,7 +85,7 @@ of device, cycle counters and ammeters are the correct instruments.
 |---|---|---|
 | WeAct Studio STM32H750VBT6 | Cortex-M7 @ 480MHz, 1MB SRAM, 8MB QSPI flash | Main inference engine |
 | OV2640 camera (onboard) | DCMI interface | Live image capture |
-| 0.86" TFT display (onboard) | SPI | Bounding box + gate status display |
+| 0.96" ST7735 TFT (onboard, 160×80) | SPI | Bounding box + gate status display |
 | RP2350-USB Mini (16MB flash) | Dual Cortex-M33 @ 150MHz, 520KB SRAM | Always-on pre-screen + output controller |
 | PIR sensor HC-SR501 | 3–7m range | Level-1 motion pre-screen |
 | Servo motor SG90 | 180° | Physical response to detection |
@@ -373,6 +373,9 @@ to the pico-sdk firmware.
 3. Move an object into frame → **GATE: OPEN**, bounding box drawn, latency HUD updates
 4. Remove the object → gate closes, system re-arms
 5. On `person` detection → servo on the RP2350 actuates
+6. Press the board's **K1 button (PC13)** to toggle gating off/on live; the HUD
+   shows average latency with and without the gate on the same scene, which is
+   the whole thesis of the project in one button press
 
 ### Step 6: Run the host-side gate tests (no hardware needed)
 
