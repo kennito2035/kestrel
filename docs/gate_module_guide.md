@@ -56,6 +56,13 @@ single most persuasive 10 seconds available for the demo video.
   before touching DCMI, and re-arm the DMA double buffer.
 - Keep the previous grayscale frame across STOP (it's in DTCM, which is
   retained) so the first post-wake gate check is meaningful.
+- **Fail-open rule:** whenever there is no *valid* previous frame: first
+  frame after power-on, after a reset, or any time the buffer's validity
+  flag isn't set; skip the gate and run full inference. The gate may only
+  ever skip work when it has positive evidence the scene is unchanged;
+  in every ambiguous state, the system falls back to the safe behavior
+  (detect everything). This is what makes gating an optimization rather
+  than a reliability risk.
 
 ## Measuring
 
