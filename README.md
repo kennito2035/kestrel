@@ -79,9 +79,10 @@ Kestrel is a complete **sense → decide → act** loop under real power constra
 Numbers currently marked **[TBM]** (*to be measured*) are pending hardware measurement and will
 be replaced with real data before submission. Where we state expectations, they are anchored to
 published references: ST's model zoo reports st_yolo_x nano at 192×192 taking ~335ms on an
-STM32H747 @ 400MHz, so we expect a 96×96-class INT8 detector on the H750 @ 480MHz to land in
-the **60–150ms** range, meaning the sub-millisecond gate check is **~100–400× cheaper than one
-inference**, and every gated frame recovers that cost.
+STM32H747 @ 400MHz, and the deployed model (st_yololcv1 192×192 INT8, COCO person; see
+[`training/README.md`](training/README.md)) is published at 179ms on that same board, so we
+expect **~150ms** on the H750 @ 480MHz, meaning the sub-millisecond gate check is **~200–400×
+cheaper than one inference**, and every gated frame recovers that cost.
 
 **Instruments:** Cortex-M7 DWT cycle counter (`benchmark.c`) for all timing; USB inline power
 meter + bench multimeter for current. We do not use Arm Performix here: Performix targets
@@ -152,7 +153,7 @@ exposed): see [docs/hardware/rp2350-usb-mini-pinout.jpg](docs/hardware/rp2350-us
 ║  ┌────────────────────────────▼─────────────────────────────────┐   ║
 ║  │  INFERENCE STAGE  (fixed cost per invocation)                │   ║
 ║  │                                                              │   ║
-║  │  Crop ROI (padded to square) ──▶ resize to 96×96 input       │   ║
+║  │  Crop ROI (padded to square) ──▶ resize to 192×192 input     │   ║
 ║  │    → same inference cost as full frame, but the moving       │   ║
 ║  │      object fills the model's field of view (digital zoom)   │   ║
 ║  │  INT8 detector, CMSIS-NN M7 kernels                          │   ║
@@ -167,11 +168,11 @@ exposed): see [docs/hardware/rp2350-usb-mini-pinout.jpg](docs/hardware/rp2350-us
 ╚══════════════════════════════════════════════════════════════════════╝
 ```
 
-**Where the savings come from (and where they don't):** the model input is a fixed 96×96
+**Where the savings come from (and where they don't):** the model input is a fixed 192×192
 tensor, so a single inference always costs the same; cropping does *not* make inference
 faster. The compute savings come entirely from the **gate skipping inference on unchanged
 frames** and the **PIR cascade letting the H750 sleep**. The ROI crop is an *accuracy*
-optimization at equal cost. (A planned extension, a "resolution ladder" of 96/64/48 model
+optimization at equal cost. (A planned extension, a "resolution ladder" of 192/128/96 model
 variants dispatched by ROI size, would make inference cost genuinely scale with motion area;
 see [Roadmap](#roadmap).)
 
@@ -255,7 +256,7 @@ All values below are produced by the in-repo harnesses and logged to `benchmarks
 |---|---|---|
 | Gate check, per frame | DWT cycle counter | [TBM] (expected < 1ms) |
 | Grayscale convert, per frame | DWT | [TBM] |
-| Crop + resize to 96×96 | DWT | [TBM] |
+| Crop + resize to 192×192 | DWT | [TBM] |
 | Full inference, per invocation | DWT | [TBM] (expected 60–150ms) |
 | Gate-to-inference cost ratio | derived | [TBM] (expected 100–400×) |
 | Skip rate, typical indoor scene, 10 min | gate log | [TBM] |
@@ -426,7 +427,7 @@ python golden.py   # regenerates golden vectors and cross-checks the C results
 
 ## Roadmap
 
-- **Resolution ladder:** export the detector at 96/64/48-px input sizes (X-CUBE-AI supports
+- **Resolution ladder:** export the detector at 192/128/96-px input sizes (X-CUBE-AI supports
   multiple networks) and dispatch by ROI size, making inference cost genuinely proportional
   to motion area. The dispatch pattern itself becomes a reusable artifact.
 - **Early-exit head:** a secondary classification head after the backbone for high-confidence
