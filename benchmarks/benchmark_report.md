@@ -64,6 +64,11 @@ the correct instruments at this scale.
 | Baseline: H750 always-on, no gating | [TBM] | |
 | **Idle power reduction** | **[TBM]×** | headline |
 
+External anchor: WeAct's own `09-PWR_Test` reports **0.9mA in STANDBY @ 5V**
+for this board; our STOP-mode figure (RAM retained) should land somewhat
+above that, and a measurement far off in either direction warrants a
+methodology check.
+
 ## Threats to validity
 
 - Skip rate is scene-dependent; we report the capture conditions and the

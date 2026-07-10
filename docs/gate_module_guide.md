@@ -42,6 +42,11 @@ for (;;) {
 Detection coordinates come back in ROI space; map to frame space with
 `frame_x = roi.x + det_x * roi.w / MODEL_W` before drawing or reporting.
 
+**Demo switch:** wire the board's K1 button (PC13, pulled down) to toggle a
+`gating_enabled` flag that bypasses the gate check. The HUD then shows
+average latency with and without gating on the same live scene, the
+single most persuasive 10 seconds available for the demo video.
+
 ## STOP mode notes (H750)
 
 - Wake source is EXTI on PC0, driven by the RP2350 on PIR motion
