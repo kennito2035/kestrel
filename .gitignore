@@ -1,0 +1,33 @@
+# Build outputs
+build/
+Debug/
+Release/
+*.o
+*.elf
+*.bin
+*.hex
+*.uf2
+*.map
+
+# STM32CubeIDE / Eclipse
+.metadata/
+.settings/
+.mxproject
+
+# X-CUBE-AI generated (regenerate from .ioc; keep committed once stable)
+# stm32h750/X-CUBE-AI/
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+
+# Datasets and model binaries (too large for git; see training/README)
+training/dataset/coco/
+*.tflite
+*.onnx
+*.h5
+
+# OS
+Thumbs.db
+.DS_Store
