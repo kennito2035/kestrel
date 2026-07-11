@@ -422,6 +422,9 @@ python golden.py   # regenerates golden vectors and cross-checks the C results
    input preprocessing, with software baseline and benchmark harness.
 3. **`benchmarks/benchmark_report.md`**, a worked example of honest embedded-ML measurement
    methodology (DWT + ammeter) that other Cortex-M projects can copy.
+4. **`stm32h750/Drivers/ov3660/`** *(experimental)*, the first STM32/DCMI driver we're aware
+   of for the OV3660 camera (ported from esp32-camera's sensor logic to a dependency-injected
+   C API). Compile-verified; hardware validation is on the roadmap.
 
 ---
 
