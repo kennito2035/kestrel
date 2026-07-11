@@ -32,6 +32,10 @@ training/dataset/coco/
 # large binaries with their own licensing; see docs/day1_cubeide_bringup.md
 third_party/
 
+# Personal planning/runbook files; stay on this machine, never pushed
+TODO.md
+docs/day1_cubeide_bringup.md
+
 # Host test artifacts
 modules/motion_gate/test/test_gate
 modules/motion_gate/test/results.csv

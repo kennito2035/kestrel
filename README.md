@@ -310,7 +310,6 @@ kestrel/
 ├── training/                       # Model selection + optional retrain path
 ├── benchmarks/                     # CSV results + benchmark_report.md (methodology)
 ├── docs/
-│   ├── day1_cubeide_bringup.md     # Getting the camera running, step by step
 │   ├── gate_module_guide.md        # STM32 pipeline integration + STOP mode
 │   ├── rp2350_interpolator_guide.md
 │   └── hardware/                   # Board pinout references
