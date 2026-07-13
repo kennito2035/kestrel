@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="assets/branding/transparent/hover.png" width="140" alt="Kestrel, a hovering kestrel with a camera-aperture eye">
+</p>
+
 # Kestrel
 ### Motion-Gated Object Detection on Arm Cortex-M: spend compute only when, and where, something moves
 
