@@ -1,9 +1,9 @@
 # Kestrel Benchmark Report
 
-**Status: methodology defined, measurements pending hardware runs.**
-Every `[TBM]` below is replaced by a measured value (with the CSV committed
-next to this file) before submission. No projected numbers appear in this
-report.
+**Status: inference latency and skip rate measured on hardware (July 13);
+power table and RP2350 interpolator bench pending (meter in shipping /
+headers unsoldered).** Every remaining `[TBM]` is replaced by a measured
+value before submission. No projected numbers appear in this report.
 
 ## Instruments
 
@@ -20,10 +20,15 @@ the correct instruments at this scale.
 
 ## Measurement conditions
 
-- STM32H750 @ 480MHz, `-O2`, INT8 model via X-CUBE-AI (exact model + version
-  recorded here when measured: [TBM])
+- STM32H750 @ 480MHz (VOS0, HCLK 120MHz, app executes-in-place from QSPI);
+  model: `st_yololcv1` 192×192 INT8 (ST Model Zoo, COCO-person) via
+  X-CUBE-AI 10.2.1 / ST Edge AI Core 2.2.0; application built `-O0` (debug)
+  with `-O2` on the per-frame hot paths; inference itself runs inside ST's
+  precompiled `NetworkRuntime1020_CM7_GCC.a`
 - RP2350 @ 150MHz (default), `-O2`
-- Scene for skip-rate runs: [TBM, describe scene, lighting, distance]
+- Scene for skip-rate runs: fixed indoor room view (~3×4 m), no screens/TV
+  in frame, person walk-throughs at 1.5–4 m; one daylight run and one
+  night (artificial light off) run; see `skiprate_2026-07-13_*.mp4`
 - Each timing = median of ≥100 samples; we report median and p95.
 
 ## Results
@@ -35,15 +40,27 @@ the correct instruments at this scale.
 | Grayscale convert (160×120) | [TBM] | [TBM] |
 | Gate check, scalar | [TBM] | [TBM] |
 | Gate check, SIMD (`__USADA8` path) | [TBM] | [TBM] |
-| ROI crop + resize to 96×96 | [TBM] | [TBM] |
-| Inference (INT8, CMSIS-NN) | [TBM] | [TBM] |
+| ROI crop + bilinear resize to 192×192 | [TBM] | [TBM] |
+| Inference (INT8, X-CUBE-AI runtime) | **180 ms** (178–181 observed, DWT) | 181 ms |
 | **Gate-to-inference cost ratio** | **[TBM]** | - |
 
-### Skip rate and average compute (`gate_results.csv`)
+Inference latency is deterministic run-to-run (±1 ms window over 20-run
+warm benchmark and multi-hour live sessions). Per-stage gate/preproc
+timings await the soldered-UART CSV capture.
 
-| Scene | Frames | Skip rate | Avg per-frame cost | vs always-on |
-|---|---|---|---|---|
-| [TBM] | [TBM] | [TBM] | [TBM] | [TBM]× |
+### Skip rate and average compute
+
+Evidence: on-device session counters, filmed;
+`skiprate_2026-07-13_daylight.mp4` / `skiprate_2026-07-13_night.mp4`
+(UART `gate_results.csv` capture lands once headers are soldered).
+
+| Scene | Duration | Frames | Skip rate | Avg per-frame cost | vs always-on |
+|---|---|---|---|---|---|
+| Indoor, daylight | 20:02 | 16,201 | **98.2%** (15,910 skipped, 291 inferences) | ~3.2 ms | **~56×** |
+| Indoor, night | 12:30 | 10,310 | **99.1%** (10,220 skipped, 90 inferences) | ~1.6 ms | **~115×** |
+
+Avg per-frame cost = (inferences × 180 ms) / total frames; "vs always-on"
+compares against paying 180 ms on every frame.
 
 ### RP2350 resize (`interpolator_results.csv`)
 
