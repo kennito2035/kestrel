@@ -158,7 +158,7 @@ exposed): see [docs/hardware/rp2350-usb-mini-pinout.jpg](docs/hardware/rp2350-us
 ║  │      object fills the model's field of view (digital zoom)   │   ║
 ║  │  INT8 detector, CMSIS-NN M7 kernels                          │   ║
 ║  │  Weights: QSPI flash (XIP)   Activations: AXI SRAM           │   ║
-║  │  Per-inference latency: [TBM] (expected 60–150ms)            │   ║
+║  │  Per-inference latency: 180 ms measured, ±1 ms               │   ║
 ║  └────────────────────────────┬─────────────────────────────────┘   ║
 ║                               │                                      ║
 ║  NMS ──▶ coords mapped ROI→frame ──▶ TFT (boxes + gate HUD)          ║
@@ -257,10 +257,10 @@ All values below are produced by the in-repo harnesses and logged to `benchmarks
 | Gate check, per frame | DWT cycle counter | [TBM] (expected < 1ms) |
 | Grayscale convert, per frame | DWT | [TBM] |
 | Crop + resize to 192×192 | DWT | [TBM] |
-| Full inference, per invocation | DWT | [TBM] (expected 60–150ms) |
+| Full inference, per invocation | DWT | **180 ms** (178–181 ms window, deterministic) |
 | Gate-to-inference cost ratio | derived | [TBM] (expected 100–400×) |
-| Skip rate, typical indoor scene, 10 min | gate log | [TBM] |
-| **Average per-frame compute reduction** | derived | **[TBM]** |
+| Skip rate, typical indoor scene, 10+ min | on-device counters, filmed (`benchmarks/`) | **98.2%** daylight (20 min) / **99.1%** night (12.5 min) |
+| **Average per-frame compute reduction** | derived | **~56× daylight / ~115× night** |
 | System idle current (PIR cascade armed) | ammeter | [TBM] (expected ~2mA) |
 | H750-always-on baseline current | ammeter | [TBM] (expected ~130mA+) |
 | **Idle power reduction** | derived | **[TBM]** |
