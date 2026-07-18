@@ -258,11 +258,12 @@ All values below are produced by the in-repo harnesses and logged to `benchmarks
 
 | Measurement | Instrument | Value |
 |---|---|---|
-| Gate check, per frame | DWT cycle counter | [TBM] (expected < 1ms) |
-| Grayscale convert, per frame | DWT | [TBM] |
-| Crop + resize to 192×192 | DWT | [TBM] |
+| Gate check, per frame (SIMD) | DWT cycle counter | **173 µs** |
+| Grayscale convert, per frame | DWT | **325 µs** |
+| Crop + resize to 192×192 (SW) | DWT | **12.6 ms** (→ RP2350 offload target) |
 | Full inference, per invocation | DWT | **180 ms** (178–181 ms window, deterministic) |
-| Gate-to-inference cost ratio | derived | [TBM] (expected 100–400×) |
+| Gate-to-inference cost ratio | derived | **≈1,000×** (178 ms ÷ 173 µs) |
+| Processing throughput | on-device FPS | **~5 FPS always-on → ~15 FPS gated-idle** |
 | Skip rate, typical indoor scene, 10+ min | on-device counters, filmed (`benchmarks/`) | **98.2%** daylight (20 min) / **99.1%** night (12.5 min) |
 | **Average per-frame compute reduction** | derived | **~56× daylight / ~115× night** |
 | H750 always-on, no gating (whole board @5V) | FNB-C2 inline | **243 mA / 1.24 W** |

@@ -29,19 +29,30 @@ the correct instruments at this scale.
 - Scene for skip-rate runs: fixed indoor room view (~3×4 m), no screens/TV
   in frame, person walk-throughs at 1.5–4 m; one daylight run and one
   night (artificial light off) run; see `skiprate_2026-07-13_*.mp4`
-- Each timing = median of ≥100 samples; we report median and p95.
+- Per-stage timings are live DWT cycle-counter reads at 480 MHz, captured
+  on-device and shown on the stats HUD (photographed). The gate, grayscale
+  and inference stages are deterministic run-to-run; resize is a fixed
+  192×192 output so also stable. Values below are representative captures.
 
 ## Results
 
-### H750 per-stage latency (`gate_results.csv`)
+### H750 per-stage latency (DWT @ 480 MHz, measured July 13)
 
-| Stage | Median | p95 |
+| Stage | Time | Notes |
 |---|---|---|
-| Grayscale convert (160×120) | [TBM] | [TBM] |
-| Gate check, scalar | [TBM] | [TBM] |
-| Gate check, SIMD (`__USADA8` path) | [TBM] | [TBM] |
-| ROI crop + bilinear resize to 192×192 | [TBM] | [TBM] |
-| Inference (INT8, X-CUBE-AI runtime) | **180 ms** (178–181 observed, DWT) | 181 ms |
+| Grayscale convert (160×120, green-luma) | **325 µs** | every frame |
+| Gate check, SIMD (`__USADA8` path) | **173 µs** | every frame; 19,200 px scan |
+| ROI crop + bilinear resize to 192×192 | **12.6 ms** | only on gate-open; software, `-O2` |
+| Inference (INT8, X-CUBE-AI runtime) | **178–181 ms** | only on gate-open |
+| **Skipped-frame cost** (gray + gate) | **≈0.50 ms** | what a "skip" actually costs |
+| **Processed-frame cost** (full path) | **≈191 ms** | gray+gate+resize+inference |
+| **Gate-decision vs inference ratio** | **≈1,000×** | 178 ms ÷ 173 µs; the gate is that much cheaper than what it may avoid |
+
+Note: the **software resize (12.6 ms)** is the second-largest cost after
+inference; this is precisely the workload the RP2350 hardware-interpolator
+resize artifact (`rp2350/`) offloads, a concrete case for heterogeneous
+compute. Gate-check scalar-vs-SIMD comparison pending (only the SIMD path is
+compiled in the shipping build).
 | **Gate-to-inference cost ratio** | **[TBM]** | - |
 
 Inference latency is deterministic run-to-run (±1 ms window over 20-run
@@ -87,6 +98,11 @@ regulators). Each figure is the highest reading observed after ≥10s settle.
 | **Gate saving while awake** | 243→186 mA | **−23% (1.31×)** | pure compute-gating effect |
 | **STOP vs always-on (H750-only idle reduction)** | 243→99 mA | **−59% (2.45×)** | headline (this board) |
 | Cascade idle (H750 STOP + RP2350 PIR-armed) | [TBM] | [TBM] | needs Stage-3 board |
+
+Throughput follows the same split: **always-on ≈ 5 FPS** (bounded by the
+~180 ms/frame inference, 1000/180 ≈ 5.5) versus **gated-idle ≈ 15 FPS**
+(full camera rate, inference skipped). So gating makes the display both
+**faster and cooler** at once, 15 FPS @ 0.95 W vs 5 FPS @ 1.24 W.
 
 **Reading these honestly:** the 98–99% figure above is a *compute* reduction
 (frames that skip the 180 ms inference). Whole-**board** power reduction is
