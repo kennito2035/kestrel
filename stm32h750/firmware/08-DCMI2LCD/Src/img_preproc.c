@@ -6,6 +6,9 @@
  */
 #include "img_preproc.h"
 
+/* Hot per-frame path: optimize regardless of the project's -O0 debug level */
+#pragma GCC optimize("O2")
+
 static inline void unpack565(uint16_t v, uint8_t *r, uint8_t *g, uint8_t *b)
 {
 #if PREPROC_SWAP_BYTES
@@ -85,6 +88,30 @@ void preproc_rgb565_to_rgb888(const uint16_t *src, int src_w, int src_h,
 #error "PREPROC_ROTATE must be 0, 90 or 270"
 #endif
       sample_bilinear(src, src_w, src_h, pxf, pyf, dst);
+      dst += 3;
+    }
+  }
+}
+
+void preproc_rgb565_window(const uint16_t *src, int src_w, int src_h,
+                           int wx, int wy, int ww, int wh, uint8_t *dst)
+{
+  if (ww < 2 || wh < 2)
+  {
+    preproc_rgb565_to_rgb888(src, src_w, src_h, dst);
+    return;
+  }
+  const uint32_t x_step = ((uint32_t)(ww - 1) << 16) / (PREPROC_DST_W - 1);
+  const uint32_t y_step = ((uint32_t)(wh - 1) << 16) / (PREPROC_DST_H - 1);
+  const uint32_t bx = (uint32_t)wx << 16, by = (uint32_t)wy << 16;
+
+  uint32_t ly = 0;
+  for (int dy = 0; dy < PREPROC_DST_H; dy++, ly += y_step)
+  {
+    uint32_t lx = 0;
+    for (int dx = 0; dx < PREPROC_DST_W; dx++, lx += x_step)
+    {
+      sample_bilinear(src, src_w, src_h, bx + lx, by + ly, dst);
       dst += 3;
     }
   }

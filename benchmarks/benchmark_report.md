@@ -12,7 +12,7 @@ value before submission. No projected numbers appear in this report.
 | Per-stage latency (H750) | DWT cycle counter @ 480MHz (`benchmark.c`) | Cycle-exact, zero-overhead reads, on the device under test |
 | Per-stage latency (RP2350) | `time_us_64()` over 100-rep loops | µs resolution amortized over reps |
 | Skip rate | Gate log over ≥10 min of a real scene | Captures real sensor noise + real activity patterns |
-| Current draw | USB inline power meter + bench multimeter | Whole-board truth, includes regulators and peripherals |
+| Current draw | FNIRSI FNB-C2 inline USB meter (20-bit ADC, 1µA resolution, published ±0.05%+2cnt current accuracy) | Whole-board truth, includes regulators and peripherals |
 
 We do not use Arm Performix: it targets Arm64 Linux (Neoverse-class) systems
 and cannot attach to bare-metal Cortex-M. Cycle counters and ammeters are
@@ -120,7 +120,10 @@ near-µA floor; future work, not claimed here.
 
 - Skip rate is scene-dependent; we report the capture conditions and the
   raw log so others can judge transferability.
-- USB power meters have ±1–2% class accuracy; adequate for the order-of-
-  magnitude claims made here, cross-checked with a bench multimeter.
+- Power figures come from a single instrument (FNIRSI FNB-C2; manufacturer-
+  published ±0.05%+2cnt current accuracy, 20-bit ADC). We conservatively
+  treat it as better-than-±1% class; the claims made from it are 1.3×–2.45×
+  ratios, orders of magnitude above any plausible instrument error. No
+  independent second-meter cross-check has been performed.
 - DWT timings exclude DMA transfers that overlap compute by design (that
   overlap is itself one of the optimizations).

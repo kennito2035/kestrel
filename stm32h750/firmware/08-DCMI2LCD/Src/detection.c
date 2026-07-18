@@ -1,20 +1,25 @@
 /*
- * detection.c - YOLOv2-style anchor decode + NMS for st_yolo_lc_v1 (1 class).
- * Layout assumption per cell: anchor-major [a][tx,ty,tw,th,tobj,tclass]
- * (standard darknet/ST head layout). If detections are ever garbage while the
- * pipeline is proven, this interleave is the first thing to re-check.
+ * detection.c - decode + NMS for st_yolo_lc_v1 192x192 INT8 (1 class, person).
+ *
+ * Output tensor: f32 [12][12][5*6], anchor-major per cell:
+ *   [a][tx, ty, tw, th, tobj, tclass].  Layout verified on-target (a flat-gray
+ *   frame yields ~0 objectness under this interleave; the alternative
+ *   field-major layout false-fires; see git history's gray-input test).
+ *
+ * DECODE NOTE (empirically established on hardware, NOT the textbook YOLOv2
+ * decode): this lightweight ST head emits box SIZES as DIRECT sigmoid
+ * fractions of the frame, i.e. w = sigmoid(tw), h = sigmoid(th); it does
+ * NOT use the darknet anchor*exp(t) form. Evidence: on a frame-filling person
+ * the raw tw/th logits read ~1.3/2.1; exp() explodes those to w=2.6/h=7.0
+ * (a permanent full-frame box), while sigmoid() gives the correct ~0.78/0.89.
+ * Consequently there is no anchor table here; anchors would be unused. The
+ * DET_W_SCALE / DET_H_SCALE factors are a small empirical aspect correction
+ * (this head over-predicts width); localization is approximate, which is
+ * consistent with the model's modest 34.7% AP. Centre (x,y) uses the standard
+ * (cell + sigmoid(t)) / grid form and tracks subjects accurately.
  */
 #include <math.h>
 #include "detection.h"
-
-/* ST model-zoo default anchors, normalized (w,h) pairs. */
-static const float det_anchors[DET_NB_ANCHORS][2] = {
-  {0.076023f, 0.258508f},
-  {0.163031f, 0.413531f},
-  {0.234769f, 0.702585f},
-  {0.427054f, 0.715999f},
-  {0.748376f, 0.857993f},
-};
 
 #define DET_MAX_CAND  24
 
@@ -79,7 +84,6 @@ int detection_decode(const float *net_out, det_box_t *boxes, int max_boxes)
          * (exp explodes to w=2.6/h=7.0; sigmoid gives the true ~0.8/0.9). */
         d->w = sigmoidf_(p[2]) * DET_W_SCALE;
         d->h = sigmoidf_(p[3]) * DET_H_SCALE;
-        (void)det_anchors[a];
         d->score = score;
       }
     }
