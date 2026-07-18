@@ -13,6 +13,10 @@
  *
  * License: MIT (see repository root).
  */
+/* Kestrel firmware copy: runs every frame; optimize past the -O0 project
+ * default. */
+#pragma GCC optimize("O2")
+
 /* Kestrel firmware copy: enable the M7 SIMD fast path by default. */
 #ifndef KESTREL_GATE_SIMD
 #define KESTREL_GATE_SIMD 1

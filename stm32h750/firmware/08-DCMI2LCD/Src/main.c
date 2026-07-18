@@ -76,8 +76,10 @@ void SystemClock_Config(void);
 // picture buffer (32-byte aligned so it can be D-cache invalidated cleanly:
 // DCMI DMA fills it, so the CPU must invalidate before reading now that AXI SRAM is cacheable)
 uint16_t pic[FrameWidth][FrameHeight] __attribute__((aligned(32)));
-uint32_t DCMI_FrameIsReady;
-uint32_t Camera_FPS=0;
+/* Written in the DCMI frame-event ISR, polled in the main loop; must be
+ * volatile so the poll re-reads memory (correct at -O0, required at -O2). */
+volatile uint32_t DCMI_FrameIsReady;
+volatile uint32_t Camera_FPS=0;
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -168,6 +170,7 @@ static const gate_config_t gate_cfg = {
 };
 
 /* RGB565 frame -> 8-bit gray (green channel as luma proxy, per gate guide) */
+__attribute__((optimize("O2")))
 static void gate_gray_convert(const uint16_t *src, uint8_t *dst)
 {
   for (int i = 0; i < 160 * 120; i++)
@@ -194,27 +197,39 @@ static void draw_char2x(int x, int y, char c, uint16_t color)
   }
 }
 
+/* Per-stage DWT timings (microseconds), captured live in the video loop.
+ * DWT->CYCCNT is already running (enabled by ai_infer_init at boot). */
+static uint32_t st_gate_us, st_gray_us, st_resize_us, st_inf_ms;
+static inline uint32_t dwt_us_since(uint32_t start)
+{
+  return (DWT->CYCCNT - start) / (SystemCoreClock / 1000000U);
+}
+
 /* Session stats card: shown while K1 is long-held in video mode.
- * Photograph this screen = skip-rate evidence without UART wiring. */
+ * Photograph this screen = skip-rate + per-stage-timing evidence, no UART.
+ * 6 lines at 13px pitch to fit the 80px-tall viewport. */
 static void show_stats_card(uint32_t frames, uint32_t skipped,
-                            uint32_t infers, uint8_t gating)
+                            uint32_t infers, uint8_t gating, uint32_t inf_ms)
 {
   uint8_t buf[32];
   uint32_t up = HAL_GetTick() / 1000;
   ST7735_LCD_Driver.FillRect(&st7735_pObj, 0, 0, ST7735Ctx.Width,
                              ST7735Ctx.Height, BLACK);
-  sprintf((char *)buf, "kestrel stats  die %dC", temp_read_c());
-  LCD_ShowString(2, 2, 156, 16, 12, buf);
+  sprintf((char *)buf, "kestrel  die %dC", temp_read_c());
+  LCD_ShowString(2, 1, 156, 16, 12, buf);
   sprintf((char *)buf, "up %lu:%02lu  gate %s", up / 60, up % 60,
           gating ? "ON" : "OFF");
-  LCD_ShowString(2, 18, 156, 16, 12, buf);
+  LCD_ShowString(2, 14, 156, 16, 12, buf);
   sprintf((char *)buf, "frames %lu", frames);
-  LCD_ShowString(2, 33, 156, 16, 12, buf);
-  sprintf((char *)buf, "skipped %lu (%lu%%)", skipped,
+  LCD_ShowString(2, 27, 156, 16, 12, buf);
+  sprintf((char *)buf, "skip %lu (%lu%%)", skipped,
           frames ? skipped * 100 / frames : 0);
-  LCD_ShowString(2, 48, 156, 16, 12, buf);
-  sprintf((char *)buf, "inferences %lu", infers);
-  LCD_ShowString(2, 63, 156, 16, 12, buf);
+  LCD_ShowString(2, 40, 156, 16, 12, buf);
+  sprintf((char *)buf, "gate %luus gray %luus", st_gate_us, st_gray_us);
+  LCD_ShowString(2, 53, 156, 16, 12, buf);
+  sprintf((char *)buf, "resize %luus inf %lums", st_resize_us, inf_ms);
+  LCD_ShowString(2, 66, 156, 16, 12, buf);
+  (void)infers;
 }
 
 /* Draws a 1px rectangle outline on the LCD viewport, clipped to 160x80. */
@@ -433,7 +448,7 @@ int main(void)
         k1_t0 = HAL_GetTick();
       if (k1 && k1_last && HAL_GetTick() - k1_t0 >= 1500)
       {
-        show_stats_card(s_frames, s_skipped, s_infer, gating_enabled);
+        show_stats_card(s_frames, s_skipped, s_infer, gating_enabled, st_inf_ms);
         while (HAL_GPIO_ReadPin(KEY_GPIO_Port, KEY_Pin) == GPIO_PIN_SET) {}
         HAL_Delay(50);
         k1 = 0;                       /* consumed: no toggle on this release */
@@ -449,13 +464,19 @@ int main(void)
       }
       k1_last = k1;
 
+      uint32_t t_dwt = DWT->CYCCNT;
       gate_gray_convert((const uint16_t *)pic, gray_curr);
+      st_gray_us = dwt_us_since(t_dwt);
 
       gate_state_t gs = GATE_OPEN;          /* fail-open rule */
       gate_roi_t roi;
       uint32_t changed = 0;
       if (gating_enabled && gate_prev_valid)
+      {
+        t_dwt = DWT->CYCCNT;
         gs = gate_check(&gate_cfg, gray_curr, gray_prev, &roi, &changed);
+        st_gate_us = dwt_us_since(t_dwt);
+      }
       g_total++;
       s_frames++;
       if (gs != GATE_OPEN) s_skipped++; else s_infer++;
@@ -526,11 +547,30 @@ int main(void)
 
       if (gs == GATE_OPEN)
       {
-        preproc_rgb565_to_rgb888((const uint16_t *)pic, 160, 120,
-                                 ai_infer_input_buffer(NULL));
+        /* Attention: when the gate localized the motion, crop its (square)
+         * ROI into the model input; distant subjects get far more pixels.
+         * Fail-open / gating-off frames still use the full frame. */
+        int rx = 0, ry = 0, rw = 160, rh = 120;
+        if (gating_enabled && gate_prev_valid)
+        {
+          rx = roi.x; ry = roi.y; rw = roi.w; rh = roi.h;
+        }
+        t_dwt = DWT->CYCCNT;
+        preproc_rgb565_window((const uint16_t *)pic, 160, 120,
+                              rx, ry, rw, rh, ai_infer_input_buffer(NULL));
+        st_resize_us = dwt_us_since(t_dwt);
         det_ms = ai_infer_run();
+        st_inf_ms = det_ms;
         n_det = detection_decode(ai_infer_output_buffer(NULL),
                                  det, DET_MAX_BOXES);
+        /* map ROI-space boxes back to full-frame normalized coords */
+        for (int i = 0; i < n_det; i++)
+        {
+          det[i].x = ((float)rx + det[i].x * (float)rw) / 160.0f;
+          det[i].y = ((float)ry + det[i].y * (float)rh) / 120.0f;
+          det[i].w = det[i].w * (float)rw / 160.0f;
+          det[i].h = det[i].h * (float)rh / 120.0f;
+        }
 
         /* update the smoothed box state */
         if (n_det > 0)

@@ -14,6 +14,10 @@
 > only when something moves, only where it moved.**
 > Event-driven object detection on Arm Cortex-M. Smarter, not just faster.
 
+**Reproducing or evaluating this project?** Start with
+[`docs/troubleshooting.md`](docs/troubleshooting.md): every build, flash and
+measurement gotcha we hit, and how to get past it in seconds.
+
 ---
 
 ## Overview
@@ -28,9 +32,9 @@ magnitude cheaper than the one it gates:
 
 | Level | Runs on | Cost | Question it answers |
 |---|---|---|---|
-| 1. PIR sensor | RP2350 (Cortex-M33), H750 asleep | ~2mA system idle | "Is anything happening at all?" |
+| 1. PIR sensor | RP2350 (Cortex-M33), H750 asleep | low-mA idle (target) | "Is anything happening at all?" |
 | 2. Frame-difference gate | STM32H750 (Cortex-M7) | sub-millisecond | "Did the scene actually change?" |
-| 3. INT8 detector (CMSIS-NN) | STM32H750 (Cortex-M7) | tens of ms | "What is it, and where?" |
+| 3. INT8 detector (X-CUBE-AI runtime) | STM32H750 (Cortex-M7) | ~180 ms | "What is it, and where?" |
 
 When the gate opens, Kestrel doesn't just run the detector; it **crops the model's input to
 the region that moved**. Because the model input resolution is fixed, this costs nothing extra,
@@ -80,18 +84,22 @@ Kestrel is a complete **sense → decide → act** loop under real power constra
 
 ## Measurement Methodology: A Note on Honesty
 
-Numbers currently marked **[TBM]** (*to be measured*) are pending hardware measurement and will
-be replaced with real data before submission. Where we state expectations, they are anchored to
-published references: ST's model zoo reports st_yolo_x nano at 192×192 taking ~335ms on an
-STM32H747 @ 400MHz, and the deployed model (st_yololcv1 192×192 INT8, COCO person; see
-[`training/README.md`](training/README.md)) is published at 179ms on that same board, so we
-expect **~150ms** on the H750 @ 480MHz, meaning the sub-millisecond gate check is **~200–400×
-cheaper than one inference**, and every gated frame recovers that cost.
+Core numbers are now **measured on hardware** (July 13); remaining **[TBM]** markers are
+pending only the RP2350 cascade wiring and its bench. As a cross-check against published
+references: ST's model zoo lists the deployed model (st_yololcv1 192×192 INT8, COCO person;
+see [`training/README.md`](training/README.md)) at 179ms on an STM32H747 @ 400MHz; we measure
+**180ms on the H750 @ 480MHz executing from QSPI flash**, the same ballpark, with the QSPI
+execute-in-place overhead offsetting the clock advantage. The measured gate check (173µs) is
+**~1,000× cheaper than one inference**, so every gated frame recovers three orders of
+magnitude of compute.
 
-**Instruments:** Cortex-M7 DWT cycle counter (`benchmark.c`) for all timing; USB inline power
-meter + bench multimeter for current. We do not use Arm Performix here: Performix targets
-Arm64 Linux systems (Neoverse/cloud) and cannot attach to bare-metal Cortex-M. For this class
-of device, cycle counters and ammeters are the correct instruments.
+**Instruments:** Cortex-M7 DWT cycle counter for all on-device timing (cycle-exact at
+480MHz). Current: **FNIRSI FNB-C2 inline USB meter**, 20-bit ADC, 1µA display resolution,
+manufacturer-published accuracy **±0.05% + 2 counts** (we treat it conservatively as
+better-than-±1% class; our power claims are 1.3×–2.45× ratios, far above any plausible
+instrument error). We do not use Arm Performix here: Performix targets Arm64 Linux systems
+(Neoverse/cloud) and cannot attach to bare-metal Cortex-M. For this class of device, cycle
+counters and ammeters are the correct instruments.
 
 ---
 
@@ -106,7 +114,7 @@ of device, cycle counters and ammeters are the correct instruments.
 | PIR sensor HC-SR501 | 3–7m range | Level-1 motion pre-screen |
 | Servo motor SG90 | 180° | Physical response to detection |
 
-**Wiring (H750 ↔ RP2350-ONE):**
+**Wiring (H750 ↔ RP2350-USB Mini):**
 
 ```
 STM32H750  PA9  (UART1 TX)  ──────▶  RP2350 GP1  (UART0 RX)
@@ -127,10 +135,10 @@ exposed): see [docs/hardware/rp2350-usb-mini-pinout.jpg](docs/hardware/rp2350-us
 
 ```
 ╔══════════════════════════════════════════════════════════════════════╗
-║  RP2350-ONE  (Always-on, Cortex-M33 @ 150MHz)                        ║
+║  RP2350-USB Mini  (Always-on, Cortex-M33 @ 150MHz)                  ║
 ║                                                                      ║
 ║  Core 0:  PIR sensor ──▶ EXTI ──▶ GPIO HIGH ──▶ Wake H750           ║
-║           System idle current: ~2mA [TBM]  (H750 active: ~180mA [TBM])
+║      Cascade idle current: [TBM, needs Stage 3]  (H750 always-on: 243mA measured)
 ║                                                                      ║
 ║  Core 1:  UART RX ──▶ parse detection event ──▶ drive servo/LED     ║
 ╚══════════════════════════╦═══════════════════════════════════════════╝
@@ -160,7 +168,7 @@ exposed): see [docs/hardware/rp2350-usb-mini-pinout.jpg](docs/hardware/rp2350-us
 ║  │  Crop ROI (padded to square) ──▶ resize to 192×192 input     │   ║
 ║  │    → same inference cost as full frame, but the moving       │   ║
 ║  │      object fills the model's field of view (digital zoom)   │   ║
-║  │  INT8 detector, CMSIS-NN M7 kernels                          │   ║
+║  │  INT8 detector, X-CUBE-AI runtime (M7 kernels)               │   ║
 ║  │  Weights: QSPI flash (XIP)   Activations: AXI SRAM           │   ║
 ║  │  Per-inference latency: 180 ms measured, ±1 ms               │   ║
 ║  └────────────────────────────┬─────────────────────────────────┘   ║
@@ -235,12 +243,13 @@ critical path. The benchmark, guide, and module stand alone; see
 Established techniques, included as correct practice (we do not claim them as novel):
 
 - **INT8 post-training quantization** via the ST Model Zoo / X-CUBE-AI pipeline. Model size,
-  RAM, and accuracy deltas will be reported from X-CUBE-AI Analyze output for the exact
-  deployed model: **[TBM]**.
-- **CMSIS-NN Cortex-M7 kernels**, selected by X-CUBE-AI; INT8 conv/depthwise ops use M7
-  SIMD/DSP instructions.
-- **Double-buffered DMA capture**: DCMI+DMA fills frame N+1 while the M7 processes frame N,
-  removing capture latency from the critical path.
+  RAM, and accuracy from X-CUBE-AI Analyze: **`st_yololcv1` 192×192 INT8, 328 KiB Flash /
+  160 KiB RAM, 62 M MACC, 34.7% AP (COCO-person, ST Model Zoo)**; on-device latency 180 ms.
+- **X-CUBE-AI runtime kernels**: the `NetworkRuntime` library is partly CMSIS-NN-derived and
+  partly ST-optimized per STM32 series; INT8 conv/depthwise ops use M7 SIMD/DSP instructions.
+- **Continuous DMA capture overlapping compute**: DCMI+DMA streams frames into the capture
+  buffer (circular, single-buffer) while the M7 processes, so capture never blocks the
+  pipeline; the CPU invalidates the D-cache over the buffer before each read for coherency.
 - **STOP-mode power management**: the H750 sleeps between PIR events; wake source is a GPIO
   EXTI line driven by the RP2350.
 
@@ -322,6 +331,7 @@ kestrel/
 ├── training/                       # Model selection + optional retrain path
 ├── benchmarks/                     # CSV results + benchmark_report.md (methodology)
 ├── docs/
+│   ├── troubleshooting.md          # ⚠ READ FIRST if reproducing - every gotcha we hit
 │   ├── gate_module_guide.md        # STM32 pipeline integration + STOP mode
 │   ├── rp2350_interpolator_guide.md
 │   └── hardware/                   # Board pinout references
@@ -462,4 +472,4 @@ MIT; see [LICENSE](LICENSE).
 - [CMSIS-NN](https://github.com/ARM-software/CMSIS-NN), Arm Cortex-M optimized NN kernels
 - [Fast YOLO (Shafiee et al., 2017)](https://arxiv.org/abs/1709.05943), [AmphibianDetector](https://arxiv.org/abs/2011.07513), motion-adaptive inference concept
 - [WeAct Studio](https://github.com/WeActStudio), STM32H750 board + OV2640 examples
-- [Waveshare RP2350-ONE](https://www.waveshare.com/wiki/RP2350-One)
+- [Raspberry Pi RP2350](https://www.raspberrypi.com/products/rp2350/) (deployed on an RP2350-USB Mini 16MB module)

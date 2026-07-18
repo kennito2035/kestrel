@@ -32,4 +32,10 @@
 void preproc_rgb565_to_rgb888(const uint16_t *src, int src_w, int src_h,
                               uint8_t *dst);
 
+/* Same, but samples only the window (wx,wy,ww,wh) of the source, used to
+ * crop the gate's motion ROI into the model input ("attention" zoom).
+ * PREPROC_ROTATE must be 0 for windowed mode. */
+void preproc_rgb565_window(const uint16_t *src, int src_w, int src_h,
+                           int wx, int wy, int ww, int wh, uint8_t *dst);
+
 #endif /* IMG_PREPROC_H */

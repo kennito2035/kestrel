@@ -3,8 +3,12 @@
  * Register-level, lazy-init, no CubeMX/HAL-ADC dependency.
  * Factory 2-point calibration: TS_CAL1 @30C (0x1FF1E820),
  * TS_CAL2 @110C (0x1FF1E840), both 16-bit @ VDDA=3.3V (matches board).
- * Kernel clock: per_ck (HSI 64MHz) / 8 = 8MHz -> no BOOST needed;
- * SMP=810.5 cycles ~= 101us > 9us minimum sampling for VSENSE.
+ * Kernel clock: per_ck (HSI 64MHz) / 16 = 4MHz. Kept <=6.25MHz on purpose so
+ * the ADC_CR BOOST field may stay at its reset value 0 (valid for <=6.25MHz on
+ * rev V); at 8MHz BOOST=1 would be required for rated accuracy. SMP=810.5
+ * cycles ~= 202us >> 9us minimum sampling for VSENSE. One-shot, cost irrelevant.
+ * NOTE: die-temp is telemetry only (shown on the stats card), not a benchmark
+ * input; sanity-check the on-screen value is ~30-55C before citing it.
  */
 #include "main.h"
 #include "temp_sensor.h"
@@ -22,7 +26,7 @@ static void ts_init(void)
   /* ADC kernel clock <- per_ck (HSI 64MHz); async mode, presc /8 */
   RCC->D3CCIPR = (RCC->D3CCIPR & ~RCC_D3CCIPR_ADCSEL_Msk)
                | (2U << RCC_D3CCIPR_ADCSEL_Pos);
-  ADC3_COMMON->CCR = (4U << ADC_CCR_PRESC_Pos) | ADC_CCR_TSEN;
+  ADC3_COMMON->CCR = (7U << ADC_CCR_PRESC_Pos) | ADC_CCR_TSEN; /* /16 = 4MHz */
 
   /* wake from deep-power-down, enable regulator, settle */
   ADC3->CR &= ~ADC_CR_DEEPPWD;
