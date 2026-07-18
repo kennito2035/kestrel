@@ -45,3 +45,6 @@ rp2350/test/test_resize
 Thumbs.db
 .DS_Store
 HANDOFF.md
+
+# Vendor tooling (FNB-C2 power meter software), not evaluation-relevant
+FNIRSI-UsbMeter_V0_0_7/
