@@ -73,18 +73,32 @@ compares against paying 180 ms on every frame.
 
 ### Power
 
-| State | Current | Notes |
-|---|---|---|
-| Cascade idle (RP2350 + PIR armed, H750 in STOP) | [TBM] | |
-| Gate-only duty (H750 awake, gate closed) | [TBM] | |
-| Full inference | [TBM] | |
-| Baseline: H750 always-on, no gating | [TBM] | |
-| **Idle power reduction** | **[TBM]×** | headline |
+Measured July 13 with a FNIRSI FNB-C2 inline on the USB-C 5V feed
+(±0.05% class), whole board (H750 + OV2640 camera + ST7735 LCD +
+regulators). Each figure is the highest reading observed after ≥10s settle.
 
-External anchor: WeAct's own `09-PWR_Test` reports **0.9mA in STANDBY @ 5V**
-for this board; our STOP-mode figure (RAM retained) should land somewhat
-above that, and a measurement far off in either direction warrants a
-methodology check.
+| State | Current @≈5.1V | Power | Notes |
+|---|---|---|---|
+| Boot inrush | 258 mA | 1.32 W | transient, pre-run |
+| H750 always-on, no gating | 243 mA | 1.24 W | K1→GATE OFF; inference every frame |
+| Full inference, gate open (motion present) | 243 mA | 1.24 W | matches always-on, sanity check |
+| Gate-only, awake, scene idle (~99% skip) | 186 mA | 0.95 W | gate closed, CPU WFI between frames |
+| STOP sleep (H750 asleep) | **99 mA** | **0.51 W** | camera/LCD/QSPI still powered |
+| **Gate saving while awake** | 243→186 mA | **−23% (1.31×)** | pure compute-gating effect |
+| **STOP vs always-on (H750-only idle reduction)** | 243→99 mA | **−59% (2.45×)** | headline (this board) |
+| Cascade idle (H750 STOP + RP2350 PIR-armed) | [TBM] | [TBM] | needs Stage-3 board |
+
+**Reading these honestly:** the 98–99% figure above is a *compute* reduction
+(frames that skip the 180 ms inference). Whole-**board** power reduction is
+smaller, **2.45×**, because the always-on camera, LCD and 3.3V regulators
+set a ~99 mA floor that the CPU's duty cycle can't touch. Both numbers are
+real and measure different things; we do not conflate them.
+
+The STOP floor is **peripheral-bound, not core-bound**: WeAct's `09-PWR_Test`
+reaches **0.9 mA STANDBY** with everything off, versus our 99 mA with the
+camera and display left powered for instant wake. Gating those too (camera
+PWDN, panel off, QSPI deep-power-down) is the documented path to a
+near-µA floor; future work, not claimed here.
 
 ## Threats to validity
 

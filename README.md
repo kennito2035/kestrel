@@ -265,10 +265,17 @@ All values below are produced by the in-repo harnesses and logged to `benchmarks
 | Gate-to-inference cost ratio | derived | [TBM] (expected 100–400×) |
 | Skip rate, typical indoor scene, 10+ min | on-device counters, filmed (`benchmarks/`) | **98.2%** daylight (20 min) / **99.1%** night (12.5 min) |
 | **Average per-frame compute reduction** | derived | **~56× daylight / ~115× night** |
-| System idle current (PIR cascade armed) | ammeter | [TBM] (expected ~2mA) |
-| H750-always-on baseline current | ammeter | [TBM] (expected ~130mA+) |
-| **Idle power reduction** | derived | **[TBM]** |
+| H750 always-on, no gating (whole board @5V) | FNB-C2 inline | **243 mA / 1.24 W** |
+| H750 gate-only, awake, scene idle (~99% skip) | FNB-C2 inline | **186 mA / 0.95 W** (−23%) |
+| H750 STOP sleep (camera/LCD still powered) | FNB-C2 inline | **99 mA / 0.51 W** |
+| **H750 idle power reduction (always-on → STOP)** | derived | **2.45×** |
+| Cascade idle (H750 STOP + RP2350 PIR-armed) | ammeter | [TBM] (Stage 3) |
 | Small-object detection: full-frame vs ROI crop | eval script | [TBM] |
+
+> Note: the 98–99% skip figure is a **compute** reduction; whole-**board**
+> idle power drops **2.45×**; the always-on camera/LCD/regulators set the
+> floor. Distinct quantities, both measured, never conflated. See
+> [`benchmarks/benchmark_report.md`](benchmarks/benchmark_report.md).
 
 The headline claim is the pair in bold: *average compute scales with scene activity, and idle
 power scales with the cheapest watcher in the cascade.*
