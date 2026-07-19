@@ -282,7 +282,7 @@ All values below are produced by the in-repo harnesses and logged to `benchmarks
 |---|---|---|
 | Gate check, per frame (SIMD) | DWT cycle counter | **173 µs** |
 | Grayscale convert, per frame | DWT | **325 µs** |
-| Crop + resize to 192×192 (SW) | DWT | **12.6 ms** (→ RP2350 offload target) |
+| Crop + resize to 192×192 (SW) | DWT | **12.6 ms** (software, `-O2`) |
 | Full inference, per invocation | DWT | **180 ms** (178–181 ms window, deterministic) |
 | Gate-to-inference cost ratio | derived | **≈1,000×** (178 ms ÷ 173 µs) |
 | Processing throughput | on-device FPS | **~5 FPS always-on → ~15 FPS gated-idle** |
@@ -440,8 +440,10 @@ python golden.py   # regenerates golden vectors and cross-checks the C results
 - **Skip rate:** set `BENCHMARK_GATE_LOG 1`; logs `CLOSED`/`OPEN` + ROI area % every 100
   frames; leave running on your scene for 10 minutes and feed the CSV to
   `benchmarks/summarize.py`.
-- **Interpolator vs software resize (RP2350):** build with `-DUSE_HW_INTERPOLATOR=1` and
-  `=0`; each prints cycle counts over UART.
+- **Interpolator vs software resize (RP2350):** flash
+  `rp2350/arduino/kestrel_interp_bench/` (or the pico-sdk `interp_resize_bench`
+  target); a single run times both paths and prints the CSV table, speedup and
+  bit-exactness check over USB serial.
 - **Power:** USB inline meter on each board's supply; states: cascade idle, gate-only, full
   inference. Methodology details in `benchmarks/benchmark_report.md`.
 
