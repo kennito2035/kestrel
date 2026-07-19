@@ -111,7 +111,7 @@ observed after ≥10s settle.
 | STOP sleep (panel SLPIN, camera hardware PWDN) | **82 mA** | **0.42 W** | regulators + board still powered |
 | **Gate saving while awake** | 243→186 mA | **−23% (1.31×)** | pure compute-gating effect |
 | **STOP vs always-on (H750-only idle reduction)** | 243→82 mA | **−66% (2.96×)** | headline (this board) |
-| Cascade idle (H750 STOP + RP2350 PIR-armed) | [TBM] | [TBM] | needs Stage-3 board |
+| Cascade idle (H750 STOP + RP2350 PIR-armed) | [TBM] | [TBM] | pending cable adapter |
 
 Throughput follows the same split: **always-on ≈ 5 FPS** (bounded by the
 ~180 ms/frame inference, 1000/180 ≈ 5.5) versus **gated-idle ≈ 15 FPS**
