@@ -331,7 +331,7 @@ kestrel/
 ├── training/                       # Model selection + optional retrain path
 ├── benchmarks/                     # CSV results + benchmark_report.md (methodology)
 ├── docs/
-│   ├── troubleshooting.md          # ⚠ READ FIRST if reproducing - every gotcha we hit
+│   ├── troubleshooting.md          # READ FIRST if reproducing - every gotcha we hit
 │   ├── gate_module_guide.md        # STM32 pipeline integration + STOP mode
 │   ├── rp2350_interpolator_guide.md
 │   └── hardware/                   # Board pinout references

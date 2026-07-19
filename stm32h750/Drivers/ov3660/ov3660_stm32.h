@@ -2,7 +2,7 @@
  * OV3660 driver for STM32 DCMI pipelines, a port of the sensor logic from
  * esp32-camera (Apache-2.0) to a dependency-injected C API.
  *
- * ⚠ STATUS: EXPERIMENTAL, compile-verified, not yet validated on hardware.
+ * STATUS: EXPERIMENTAL, compile-verified, not yet validated on hardware.
  *   We found no public STM32/DCMI OV3660 driver (as of July 2026); this port
  *   exists so the OV3660 can join the OV2640/OV5640/OV7670/OV7725 sensors
  *   already supported by common STM32 camera boards. Validation checklist in
