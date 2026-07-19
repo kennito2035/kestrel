@@ -87,8 +87,8 @@ patterns (texture walks, audio resampling), not value lerps. Full data:
 
 Arduino IDE (what produced the published numbers): open
 `rp2350/arduino/kestrel_interp_bench/`, board "Generic RP2350", Flash
-16MB (arduino-pico core); the sketch pins -O2 via pragma and includes a
-blend-equation probe. Or pico-sdk:
+16MB, arduino-pico core 5.7.0 (gcc 13); the sketch pins -O2 via pragma
+and includes a blend-equation probe. Or pico-sdk:
 
 ```bash
 cd rp2350
