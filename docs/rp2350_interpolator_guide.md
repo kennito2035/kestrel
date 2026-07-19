@@ -93,7 +93,7 @@ blend-equation probe. Or pico-sdk:
 ```bash
 cd rp2350
 mkdir build && cd build
-cmake .. -DPICO_SDK_PATH=/path/to/pico-sdk -DPICO_BOARD=waveshare_rp2350_one
+cmake .. -DPICO_SDK_PATH=/path/to/pico-sdk -DPICO_BOARD=pico2
 make interp_resize_bench
 # BOOTSEL-flash interp_resize_bench.uf2, then open the USB serial port:
 # prints case,sw_us,interp_us,speedup,bit_exact for four ROI sizes

@@ -1,5 +1,5 @@
 /*
- * Kestrel RP2350-ONE firmware, always-on watcher and output controller.
+ * Kestrel RP2350-USB Mini firmware, always-on watcher and output controller.
  *
  * Core 0: PIR pre-screen. Waits (cheaply) for motion; on a PIR rising edge,
  *         pulses the H750's wake line so it can leave STOP mode and start
