@@ -23,14 +23,17 @@ ST's published benchmarks (STM32H747I-DISCO @ 400MHz, single core):
 | 224×224 int8 | 307.9 KB | 217.3 KB | 245.1 ms |
 | 256×256 int8 | 307.9 KB | 278.3 KB | 321.4 ms |
 
-At the H750's 480MHz, expect roughly **~150ms** per inference; measure it
-with `benchmark.c` and record the real number here: **[TBM]**.
+Measured on Kestrel's H750 at 480 MHz executing from QSPI flash:
+**178-181 ms, deterministic** (multi-hour window; see
+`benchmarks/benchmark_report.md`). The QSPI execute-in-place overhead
+offsets the clock advantage over ST's 179.3 ms internal-flash figure at
+400 MHz.
 
-Budget check for the H750: weights (308KB) → QSPI flash (8MB available);
-activations (166KB) → AXI SRAM (512KB), leaving ample room for the ~38KB of
-gate frame buffers in DTCM. Confirm all of this with **X-CUBE-AI → Analyze**
-before generating code, and paste the Analyze report into
-`benchmarks/benchmark_report.md`: **[TBM]**.
+Budget, confirmed on target: weights stay in QSPI flash via X-CUBE-AI's
+default NULL binding; the generated activation arena is 151.5 KiB in AXI
+SRAM (512 KB available); the ~38 KB of gate frame buffers live in DTCM.
+The deployed footprint is inspectable in the committed
+`network.c`/`network_data_params.c` under `stm32h750/firmware/`.
 
 ## Post-processing note
 
