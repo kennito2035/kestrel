@@ -1,8 +1,8 @@
 /* Verbatim copy of rp2350/src/hw_interpolator_resize.c, kept in the
  * sketch folder because Arduino cannot include files outside it, and
- * named .inc so it joins the .ino translation unit (keeping the -O2
- * pragma in force) instead of compiling separately at the IDE's default
- * optimization level. rp2350/src is canonical; re-copy after edits. */
+ * named _impl.h so Arduino copies it to the build folder without
+ * compiling it standalone; it joins the .ino translation unit, keeping
+ * the -O2 pragma in force. rp2350/src is canonical; re-copy after edits. */
 /*
  * Bilinear resize with and without the RP2350 hardware interpolator.
  *
