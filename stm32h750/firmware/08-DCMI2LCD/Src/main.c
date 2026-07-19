@@ -293,6 +293,21 @@ int main(void)
   /* USER CODE BEGIN 2 */
   uint8_t text[32];
 
+  /* SB1 is bridged: PA7 drives the OV2640 PWDN line (active high; R18
+   * 10K pulls it low). Schematic and WeAct's OpenMV port both confirm
+   * PA7; PD4 is SB2/MicroSD_SW, not the camera. Preload the output latch
+   * LOW before switching the pin to output so the camera never sees a
+   * power-down glitch at boot. */
+  {
+    GPIO_InitTypeDef pwdn = {0};
+    HAL_GPIO_WritePin(GPIOA, GPIO_PIN_7, GPIO_PIN_RESET);
+    pwdn.Pin = GPIO_PIN_7;
+    pwdn.Mode = GPIO_MODE_OUTPUT_PP;
+    pwdn.Pull = GPIO_NOPULL;
+    pwdn.Speed = GPIO_SPEED_FREQ_LOW;
+    HAL_GPIO_Init(GPIOA, &pwdn);
+  }
+
   /* Minimal LCD bring-up (init part of WeAct's LCD_Test, without the
    * logo/countdown boot show), then a clean "Booting... %" sequence. */
   #ifdef TFT96
@@ -636,13 +651,7 @@ int main(void)
         LCD_SetBrightness(0);
         HAL_GPIO_WritePin(PE3_GPIO_Port, PE3_Pin, GPIO_PIN_RESET);
 
-        /* Panel deep sleep: SLPIN (display + booster off). NOTE: OV2640
-         * software-standby was tried and REVERTED; the sensor does not
-         * resume reliably after STOP (frozen/black video even with a full
-         * re-init on wake). Proper camera power-down needs the hardware
-         * PWDN line: solder bridge SB1 routes PD4 -> DVP_PWDN (planned with
-         * the Stage-3 soldering pass). Until then the camera stays powered
-         * in STOP and dominates the sleep floor. */
+        /* Panel deep sleep: SLPIN (display + booster off) */
         {
           uint8_t zero = 0;
           ST7735_LCD_Driver.DisplayOff(&st7735_pObj);
@@ -650,10 +659,21 @@ int main(void)
           HAL_Delay(120);                              /* SLPIN settle */
         }
 
+        /* Camera hard power-down: PWDN high via PA7 through bridged SB1.
+         * Registers are retained (supply stays on, PWDN gates the core).
+         * NOTE: software COM2 standby was tried instead and does NOT
+         * survive STOP (frozen video even after full re-init); only this
+         * hardware path is reliable, see docs/troubleshooting.md. */
+        HAL_GPIO_WritePin(GPIOA, GPIO_PIN_7, GPIO_PIN_SET);
+
         stop_mode_sleep();   /* blocks in STOP until PC0 or K1 rises */
 
         k1_last = 1;         /* swallow a K1 wake-press: no gating toggle */
         uart_printf("stop,wake,%lu\r\n", HAL_GetTick());
+
+        /* Camera back on first (PWDN low); the panel's 120ms SLPOUT
+         * settle below doubles as the sensor's resume time */
+        HAL_GPIO_WritePin(GPIOA, GPIO_PIN_7, GPIO_PIN_RESET);
 
         /* Panel wake: SLPOUT needs 120ms before further commands */
         {

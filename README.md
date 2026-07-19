@@ -96,7 +96,7 @@ magnitude of compute.
 **Instruments:** Cortex-M7 DWT cycle counter for all on-device timing (cycle-exact at
 480MHz). Current: **FNIRSI FNB-C2 inline USB meter**, 20-bit ADC, 1µA display resolution,
 manufacturer-published accuracy **±0.05% + 2 counts** (we treat it conservatively as
-better-than-±1% class; our power claims are 1.3×–2.6× ratios, far above any plausible
+better-than-±1% class; our power claims are 1.3×–3.0× ratios, far above any plausible
 instrument error). We do not use Arm Performix here: Performix targets Arm64 Linux systems
 (Neoverse/cloud) and cannot attach to bare-metal Cortex-M. For this class of device, cycle
 counters and ammeters are the correct instruments.
@@ -277,13 +277,13 @@ All values below are produced by the in-repo harnesses and logged to `benchmarks
 | **Average per-frame compute reduction** | derived | **~56× daylight / ~115× night** |
 | H750 always-on, no gating (whole board @5V) | FNB-C2 inline | **243 mA / 1.24 W** |
 | H750 gate-only, awake, scene idle (~99% skip) | FNB-C2 inline | **186 mA / 0.95 W** (−23%) |
-| H750 STOP sleep (panel SLPIN, camera powered) | FNB-C2 inline | **94 mA / 0.48 W** |
-| **H750 idle power reduction (always-on → STOP)** | derived | **2.59×** |
+| H750 STOP sleep (panel SLPIN, camera hardware PWDN) | FNB-C2 inline | **82 mA / 0.42 W** |
+| **H750 idle power reduction (always-on → STOP)** | derived | **2.96×** |
 | Cascade idle (H750 STOP + RP2350 PIR-armed) | ammeter | [TBM] (Stage 3) |
 | Small-object detection: full-frame vs ROI crop | eval script | [TBM] |
 
 > Note: the 98–99% skip figure is a **compute** reduction; whole-**board**
-> idle power drops **2.59×**; the always-on camera/regulators set the
+> idle power drops **2.96×**; the regulator chain and board set the
 > floor. Distinct quantities, both measured, never conflated. See
 > [`benchmarks/benchmark_report.md`](benchmarks/benchmark_report.md).
 
