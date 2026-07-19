@@ -52,16 +52,43 @@ Because the software path ([`hw_interpolator_resize.c`](../rp2350/src/hw_interpo
 uses the identical `>>8` blend, **HW and SW outputs are byte-identical**;
 the on-device benchmark asserts this with `memcmp` on every run.
 
-## What to expect from the benchmark
+## The lane 1 alpha trap (found on silicon)
 
-Per output pixel the hardware saves two multiply-shift sequences but costs
-six SIO register writes and two reads. SIO accesses are single-cycle, so
-there is a real win, but it is **a small integer factor, not an order of
-magnitude**; run `interp_resize_bench` and trust the printed numbers over
-any intuition, ours included. Results: `benchmarks/interpolator_results.csv`
-**[TBM, populated from device output before submission]**.
+The blend alpha is **not** the raw ACCUM1 value: it is **lane 1's
+shifted-and-masked result**, and CTRL_LANE1 resets with a bit0-only
+mask. Configure only lane 0 (as this project originally did) and alpha
+silently truncates to 1 bit: blend mode degenerates to nearest-neighbor
+while everything appears to work. On our first hardware run, 95% of a
+232,544-point blend probe mismatched the software model. The fix is one
+line: give lane 1 a default (pass-through) config. Host builds cannot
+catch this; the INTERP path only compiles for the device.
+
+## What the benchmark measured (July 19, RP2350 @ 150 MHz, -O2)
+
+Per output pixel the hardware saves two multiply-shift sequences but
+costs three SIO accesses per lerp. We predicted a small win and wrote
+here, before measuring: "trust the printed numbers over any intuition,
+ours included." The printed numbers disagreed with us: **software wins**.
+
+| Path | 96×96 resize | vs SW |
+|---|---|---|
+| Software fixed-point blend, -O2 | 1554 µs | 1× |
+| INTERP0 blend mode | 1736 µs | 0.90× |
+| INTERP0, packed BASE_1AND0 stores | 2048 µs | 0.76× |
+
+Bit-exactness holds everywhere (zero mismatches, probe + full-frame
+`memcmp`). The negative throughput result is itself the finding: for
+byte-wide bilinear at -O2, a four-op ALU blend is cheaper than the SIO
+register traffic; INTERP's wins live in address-generation-heavy
+patterns (texture walks, audio resampling), not value lerps. Full data:
+[`benchmarks/interpolator_results.csv`](../benchmarks/interpolator_results.csv).
 
 ## Reproducing
+
+Arduino IDE (what produced the published numbers): open
+`rp2350/arduino/kestrel_interp_bench/`, board "Generic RP2350", Flash
+16MB (arduino-pico core); the sketch pins -O2 via pragma and includes a
+blend-equation probe. Or pico-sdk:
 
 ```bash
 cd rp2350

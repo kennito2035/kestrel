@@ -64,7 +64,10 @@ full inference.
   documented for graphics use (RP2350 datasheet §3.1.10), but we found no published use in an
   ML preprocessing pipeline. Kestrel contributes the first benchmark of hardware-assisted
   bilinear resize for model input preparation on this chip, as a standalone reusable artifact
-  for the growing class of RP2350-hosted camera projects.
+  for the growing class of RP2350-hosted camera projects. Measured on silicon, the verdict
+  is honestly negative on speed (bit-exact but 0.90×; -O2 ALU wins) and positive on insight:
+  it surfaced an undocumented-in-practice lane 1 alpha-masking gotcha that silently degrades
+  blend mode to nearest-neighbor.
 - **Honest, reproducible measurement.** Every number in this README is (or will be, before
   submission) a DWT cycle-counter or ammeter measurement, logged to CSV in
   [`benchmarks/`](benchmarks/), with the exact harness code included. No projected numbers.
@@ -150,7 +153,7 @@ exposed): see [docs/hardware/rp2350-usb-mini-pinout.jpg](docs/hardware/rp2350-us
 ║                └──▶ grayscale convert ──▶ 160×120 ×8bit (~19KB)      ║
 ║                                                                      ║
 ║  ┌──────────────────────────────────────────────────────────────┐   ║
-║  │  GATE STAGE  (sub-ms [TBM])                                  │   ║
+║  │  GATE STAGE  (0.5 ms meas.)                                  │   ║
 ║  │                                                              │   ║
 ║  │  Abs diff: current grayscale frame vs previous               │   ║
 ║  │  Changed-pixel count ──▶ threshold check                     │   ║
@@ -226,8 +229,18 @@ software implementation and a cycle-accurate benchmark harness comparing them
 
 | Method | ROI → 96×96 resize time | Speedup |
 |---|---|---|
-| Software bilinear (M33, fixed-point) | [TBM] | 1× |
-| INTERP-assisted bilinear | [TBM] | expected 2–5× |
+| Software bilinear (M33, fixed-point, -O2) | 1554 µs | 1× |
+| INTERP-assisted bilinear | 1736 µs | 0.90× (slower) |
+
+**Measured verdict (on-silicon, July 19):** bit-exact on every case (a 232,544-point
+blend-equation probe with zero mismatches, plus full-frame `memcmp` each run), but **no
+throughput win**: at -O2 the four-op ALU blend beats the three SIO register accesses each
+hardware lerp costs, and a packed-write variant is slower still (2048 µs). We report that
+honestly rather than bury it; the characterization's yield is the proven-correct reusable
+implementation plus a silicon gotcha found only on-device: the blend alpha is lane 1's
+shifted-and-masked result, and lane 1's reset-state mask truncates it to 1 bit, silently
+turning "bilinear" into nearest-neighbor unless lane 1 is explicitly configured (see
+[`docs/rp2350_interpolator_guide.md`](docs/rp2350_interpolator_guide.md)).
 
 **Honest scope note:** in Kestrel's own pipeline the frame lives on the H750, which does its
 own crop-resize, so this artifact is *not* on Kestrel's critical path. We ship it as a
