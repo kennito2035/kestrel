@@ -154,3 +154,16 @@ CPU = 480 MHz, `HSE_VALUE` in `stm32h7xx_hal_conf.h` = 25000000.
   STOP drops the floor 94 → 82 mA; wake re-streams cleanly, registers retained.
 - Wake sources: PC0 rising edge (RP2350 in Stage 3; jumper to 3V3 to fake
   it) or K1. A K1 wake-press is swallowed so it doesn't toggle gating.
+
+## RP2350 INTERP blend mode
+
+- **Configure BOTH lanes or blend silently breaks.** The blend alpha is
+  lane 1's shifted-and-masked result, not raw ACCUM1, and CTRL_LANE1
+  resets with a bit0-only mask: alpha truncates to 1 bit and "bilinear"
+  quietly becomes nearest-neighbor (95% of blends wrong on our first
+  hardware run). Give lane 1 a default pass-through config; see
+  `rp2350/src/hw_interpolator_resize.c`. Host builds cannot catch this;
+  the INTERP path only compiles on-device.
+- Do not expect the INTERP path to be faster for byte-wide bilinear: at
+  -O2 it measured 0.90× vs software (see the interpolator guide). The
+  artifact's value is the bit-exactness proof and this gotcha.

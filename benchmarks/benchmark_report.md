@@ -1,10 +1,10 @@
 # Kestrel Benchmark Report
 
-**Status: inference latency, skip rate, per-stage timings and the power
-table measured on hardware (July 13); RP2350 interpolator bench and
-cascade-idle power row pending (headers unsoldered).** Every remaining
-`[TBM]` is replaced by a measured value before submission. No projected
-numbers appear in this report.
+**Status: inference latency, skip rate, per-stage timings, the power
+table and the RP2350 interpolator bench measured on hardware (July
+13-19); only the cascade-idle power row remains (Stage-3 wiring in
+progress).** Every remaining `[TBM]` is replaced by a measured value
+before submission. No projected numbers appear in this report.
 
 ## Instruments
 
@@ -50,10 +50,10 @@ the correct instruments at this scale.
 | **Gate-decision vs inference ratio** | **≈1,000×** | 178 ms ÷ 173 µs; the gate is that much cheaper than what it may avoid |
 
 Note: the **software resize (12.6 ms)** is the second-largest cost after
-inference; this is precisely the workload the RP2350 hardware-interpolator
-resize artifact (`rp2350/`) offloads, a concrete case for heterogeneous
-compute. Gate-check scalar-vs-SIMD comparison pending (only the SIMD path is
-compiled in the shipping build).
+inference; this is the workload class the RP2350 resize artifact
+(`rp2350/`) characterizes for RP2350-hosted cameras (measured verdict in
+its section below). Gate-check scalar-vs-SIMD comparison pending (only
+the SIMD path is compiled in the shipping build).
 
 Inference latency is deterministic run-to-run (±1 ms window over 20-run
 warm benchmark and multi-hour live sessions).
@@ -72,14 +72,26 @@ Evidence: on-device session counters, filmed;
 Avg per-frame cost = (inferences × 180 ms) / total frames; "vs always-on"
 compares against paying 180 ms on every frame.
 
-### RP2350 resize (`interpolator_results.csv`)
+### RP2350 resize (`interpolator_results.csv`, measured July 19)
 
 | Case | SW µs | INTERP µs | Speedup | Bit-exact |
 |---|---|---|---|---|
-| full frame 160×120 | [TBM] | [TBM] | [TBM] | [TBM] |
-| 75% ROI 120×120 | [TBM] | [TBM] | [TBM] | [TBM] |
-| 50% ROI 80×80 | [TBM] | [TBM] | [TBM] | [TBM] |
-| 25% ROI 48×48 | [TBM] | [TBM] | [TBM] | [TBM] |
+| full frame 160×120 | 1554 | 1736 | 0.90× | yes |
+| 75% ROI 120×120 | 1554 | 1736 | 0.90× | yes |
+| 50% ROI 80×80 | 1554 | 1736 | 0.90× | yes |
+| 25% ROI 48×48 | 1554 | 1736 | 0.90× | yes |
+
+Times are identical across ROI sizes because cost is bound by the fixed
+96×96 output. **The honest verdict is negative on throughput:** at -O2
+the four-op ALU blend beats the three SIO accesses per lerp, so the
+INTERP path is 10% slower (a packed BASE_1AND0 variant is slower still,
+2048 µs). What the characterization yields instead: (1) bit-exactness
+proven on silicon, 0 mismatches in a 232,544-point blend-equation probe
+plus full-frame memcmp on every run; (2) a real silicon gotcha, found
+only on-device: the blend alpha is lane 1's shifted-and-masked result,
+and CTRL_LANE1 resets to a bit0-only mask, silently truncating alpha to
+1 bit (blend degenerates to nearest-neighbor); host builds cannot catch
+this because the INTERP path only compiles for the device.
 
 ### Power
 

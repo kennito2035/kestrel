@@ -1,0 +1,11 @@
+# RP2350 @ 150 MHz, -O2 (arduino-pico, pinned via pragma), avg of 100 reps, measured July 19 2026
+# Destination fixed at 96x96, so time is output-bound: identical across ROI sizes by design.
+# interp_us = INTERP0 blend-mode path (bit-exact vs software, verified by memcmp every run
+# plus a 232,544-point blend equation probe with 0 mismatches).
+# interp2_us = packed BASE_1AND0 single-store variant (slower: packing cost exceeds the saved store).
+# speedup = sw_us / interp_us; values below 1.0 mean the hardware path is SLOWER.
+case,sw_us,interp_us,interp2_us,speedup,bit_exact
+full frame 160x120,1554,1736,2048,0.90,yes
+75% ROI 120x120,1554,1736,2048,0.90,yes
+50% ROI 80x80,1554,1736,2048,0.90,yes
+25% ROI 48x48 (upscale),1554,1736,2048,0.90,yes
