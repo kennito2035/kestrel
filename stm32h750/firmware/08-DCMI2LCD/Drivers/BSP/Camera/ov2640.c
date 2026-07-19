@@ -1,6 +1,11 @@
 #include "ov2640.h"
 #include "ov2640_regs.h"
 
+/* This vendor driver carries the full sensor-ops helper set; Kestrel's
+ * pipeline uses only a subset, so silence unused-function noise instead
+ * of deleting upstream code. */
+#pragma GCC diagnostic ignored "-Wunused-function"
+
 #define OV2640_XCLK_FREQUENCY       (20000000)
 #define OV2640_NUM_ALLOWED_SIZES    (19)
 #define NUM_BRIGHTNESS_LEVELS       (5)
