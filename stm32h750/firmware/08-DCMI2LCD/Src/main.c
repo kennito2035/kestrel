@@ -602,6 +602,19 @@ int main(void)
             sh += 0.4f * (det[0].h - sh);
           }
           if (vis < 4) vis++;
+
+          /* Stage-3 cascade: announce a confirmed person to the RP2350
+           * (servo strike). Rate-limited so a person standing in frame
+           * does not re-strike on every processed frame. */
+          {
+            static uint32_t last_det_tick;
+            if (vis >= 2 && HAL_GetTick() - last_det_tick > 2000)
+            {
+              last_det_tick = HAL_GetTick();
+              uart_printf("DET,person,%d\r\n",
+                          (int)(det[0].score * 100.0f));
+            }
+          }
         }
         else if (vis > 0)
         {
