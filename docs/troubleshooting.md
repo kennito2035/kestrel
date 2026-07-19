@@ -133,13 +133,24 @@ CPU = 480 MHz, `HSE_VALUE` in `stm32h7xx_hal_conf.h` = 25000000.
   States: GATE OFF always-on / gate+inference (motion in view) /
   gate-idle (still scene) / STOP sleep.
 - Expect always-on ≈ gate+inference (sanity check: motion opens the gate
-  every frame). The ~99 mA STOP floor is the always-powered camera + LCD +
+  every frame). The ~94 mA STOP floor is the always-powered camera +
   regulators, not the MCU; see the honesty note in the benchmark report.
 
 ## Sleep/wake specifics
 
 - Sleep blanks the **panel** to black before cutting brightness: the
   soft-PWM backlight can freeze in an ON state during STOP, so a black
-  panel is the guarantee of a dark screen.
+  panel is the guarantee of a dark screen. The panel additionally enters
+  **SLPIN** (sleep-in, booster off) before STOP and gets SLPOUT + 120 ms
+  on wake, worth ~5 mA at the sleep floor (99 → 94 mA).
+- **Do NOT put the OV2640 into software standby (COM2 bit4) around STOP
+  mode.** Tried and reverted: the sensor does not resume streaming after
+  wake; video stays frozen/black even after a full `Camera_Init_Device()
+  ` re-init on wake (its XCLK also halts during STOP, and register-level
+  standby exit is not reliable from that state). The correct camera
+  power-down is the hardware PWDN line: solder bridge **SB1** routes
+  PD4 → DVP_PWDN on this board (planned with the Stage-3 soldering pass).
+  Until then the camera stays powered in STOP and dominates the ~94 mA
+  sleep floor.
 - Wake sources: PC0 rising edge (RP2350 in Stage 3; jumper to 3V3 to fake
   it) or K1. A K1 wake-press is swallowed so it doesn't toggle gating.
