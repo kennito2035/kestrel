@@ -46,6 +46,11 @@ static void blend_hw_setup() {
   interp_config cfg = interp_default_config();
   interp_config_set_blend(&cfg, true);
   interp_set_config(interp0, 0, &cfg);
+  /* Blend alpha = LANE1's shifted-and-masked result; the reset-state
+   * lane 1 mask is bit0-only, truncating alpha to 0/1. Pass ACCUM1
+   * through: */
+  cfg = interp_default_config();
+  interp_set_config(interp0, 1, &cfg);
 }
 
 static uint8_t blend_hw(uint8_t a, uint8_t b, uint8_t alpha) {
