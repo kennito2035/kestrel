@@ -83,9 +83,11 @@ compares against paying 180 ms on every frame.
 
 ### Power
 
-Measured July 13 with a FNIRSI FNB-C2 inline on the USB-C 5V feed
-(±0.05% class), whole board (H750 + OV2640 camera + ST7735 LCD +
-regulators). Each figure is the highest reading observed after ≥10s settle.
+Measured with a FNIRSI FNB-C2 inline on the USB-C 5V feed (±0.05%
+class), whole board (H750 + OV2640 camera + ST7735 LCD + regulators);
+July 13, with the sleep row re-measured July 19 after panel SLPIN and
+camera hardware PWDN landed. Each figure is the highest reading
+observed after ≥10s settle.
 
 | State | Current @≈5.1V | Power | Notes |
 |---|---|---|---|
@@ -93,9 +95,9 @@ regulators). Each figure is the highest reading observed after ≥10s settle.
 | H750 always-on, no gating | 243 mA | 1.24 W | K1→GATE OFF; inference every frame |
 | Full inference, gate open (motion present) | 243 mA | 1.24 W | matches always-on, sanity check |
 | Gate-only, awake, scene idle (~99% skip) | 186 mA | 0.95 W | gate closed, CPU WFI between frames |
-| STOP sleep (H750 asleep, panel in SLPIN) | **94 mA** | **0.48 W** | camera + regulators still powered |
+| STOP sleep (panel SLPIN, camera hardware PWDN) | **82 mA** | **0.42 W** | regulators + board still powered |
 | **Gate saving while awake** | 243→186 mA | **−23% (1.31×)** | pure compute-gating effect |
-| **STOP vs always-on (H750-only idle reduction)** | 243→94 mA | **−61% (2.59×)** | headline (this board) |
+| **STOP vs always-on (H750-only idle reduction)** | 243→82 mA | **−66% (2.96×)** | headline (this board) |
 | Cascade idle (H750 STOP + RP2350 PIR-armed) | [TBM] | [TBM] | needs Stage-3 board |
 
 Throughput follows the same split: **always-on ≈ 5 FPS** (bounded by the
@@ -105,15 +107,15 @@ Throughput follows the same split: **always-on ≈ 5 FPS** (bounded by the
 
 **Reading these honestly:** the 98–99% figure above is a *compute* reduction
 (frames that skip the 180 ms inference). Whole-**board** power reduction is
-smaller, **2.59×**, because the always-on camera and 3.3V regulators
-set a ~94 mA floor that the CPU's duty cycle can't touch. Both numbers are
+smaller, **2.96×**, because the 3.3V regulator chain and board
+infrastructure set a ~82 mA floor that the CPU's duty cycle can't touch. Both numbers are
 real and measure different things; we do not conflate them.
 
 The STOP floor is **peripheral-bound, not core-bound**: WeAct's `09-PWR_Test`
-reaches **0.9 mA STANDBY** with everything off, versus our 94 mA with the
-camera left powered for instant wake (the panel does enter SLPIN). Gating those too (camera
-PWDN, panel off, QSPI deep-power-down) is the documented path to a
-near-µA floor; future work, not claimed here.
+reaches **0.9 mA STANDBY** with everything off, versus our 82 mA with the
+panel in SLPIN and the camera in hardware PWDN standby (PA7 via bridged
+SB1); gating what remains (QSPI deep-power-down, regulator rails, the
+power LED) is the documented path to a near-µA floor; future work, not claimed here.
 
 ## Threats to validity
 
@@ -121,7 +123,7 @@ near-µA floor; future work, not claimed here.
   raw log so others can judge transferability.
 - Power figures come from a single instrument (FNIRSI FNB-C2; manufacturer-
   published ±0.05%+2cnt current accuracy, 20-bit ADC). We conservatively
-  treat it as better-than-±1% class; the claims made from it are 1.3×–2.6×
+  treat it as better-than-±1% class; the claims made from it are 1.3×–3.0×
   ratios, orders of magnitude above any plausible instrument error. No
   independent second-meter cross-check has been performed.
 - DWT timings exclude DMA transfers that overlap compute by design (that
