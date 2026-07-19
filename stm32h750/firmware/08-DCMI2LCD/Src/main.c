@@ -636,10 +636,33 @@ int main(void)
         LCD_SetBrightness(0);
         HAL_GPIO_WritePin(PE3_GPIO_Port, PE3_Pin, GPIO_PIN_RESET);
 
+        /* Panel deep sleep: SLPIN (display + booster off). NOTE: OV2640
+         * software-standby was tried and REVERTED; the sensor does not
+         * resume reliably after STOP (frozen/black video even with a full
+         * re-init on wake). Proper camera power-down needs the hardware
+         * PWDN line: solder bridge SB1 routes PD4 -> DVP_PWDN (planned with
+         * the Stage-3 soldering pass). Until then the camera stays powered
+         * in STOP and dominates the sleep floor. */
+        {
+          uint8_t zero = 0;
+          ST7735_LCD_Driver.DisplayOff(&st7735_pObj);
+          st7735_write_reg(&st7735_pObj.Ctx, ST7735_SLEEP_IN, &zero, 0);
+          HAL_Delay(120);                              /* SLPIN settle */
+        }
+
         stop_mode_sleep();   /* blocks in STOP until PC0 or K1 rises */
 
         k1_last = 1;         /* swallow a K1 wake-press: no gating toggle */
         uart_printf("stop,wake,%lu\r\n", HAL_GetTick());
+
+        /* Panel wake: SLPOUT needs 120ms before further commands */
+        {
+          uint8_t zero = 0;
+          st7735_write_reg(&st7735_pObj.Ctx, ST7735_SLEEP_OUT, &zero, 0);
+          HAL_Delay(120);
+          ST7735_LCD_Driver.DisplayOn(&st7735_pObj);
+        }
+
         LCD_SetBrightness(100);
         HAL_DCMI_Start_DMA(&hdcmi, DCMI_MODE_CONTINUOUS, (uint32_t)&pic,
                            FrameWidth * FrameHeight * 2 / 4);

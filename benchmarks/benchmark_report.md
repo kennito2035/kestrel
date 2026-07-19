@@ -94,9 +94,9 @@ regulators). Each figure is the highest reading observed after ≥10s settle.
 | H750 always-on, no gating | 243 mA | 1.24 W | K1→GATE OFF; inference every frame |
 | Full inference, gate open (motion present) | 243 mA | 1.24 W | matches always-on, sanity check |
 | Gate-only, awake, scene idle (~99% skip) | 186 mA | 0.95 W | gate closed, CPU WFI between frames |
-| STOP sleep (H750 asleep) | **99 mA** | **0.51 W** | camera/LCD/QSPI still powered |
+| STOP sleep (H750 asleep, panel in SLPIN) | **94 mA** | **0.48 W** | camera + regulators still powered |
 | **Gate saving while awake** | 243→186 mA | **−23% (1.31×)** | pure compute-gating effect |
-| **STOP vs always-on (H750-only idle reduction)** | 243→99 mA | **−59% (2.45×)** | headline (this board) |
+| **STOP vs always-on (H750-only idle reduction)** | 243→94 mA | **−61% (2.59×)** | headline (this board) |
 | Cascade idle (H750 STOP + RP2350 PIR-armed) | [TBM] | [TBM] | needs Stage-3 board |
 
 Throughput follows the same split: **always-on ≈ 5 FPS** (bounded by the
@@ -106,13 +106,13 @@ Throughput follows the same split: **always-on ≈ 5 FPS** (bounded by the
 
 **Reading these honestly:** the 98–99% figure above is a *compute* reduction
 (frames that skip the 180 ms inference). Whole-**board** power reduction is
-smaller, **2.45×**, because the always-on camera, LCD and 3.3V regulators
-set a ~99 mA floor that the CPU's duty cycle can't touch. Both numbers are
+smaller, **2.59×**, because the always-on camera and 3.3V regulators
+set a ~94 mA floor that the CPU's duty cycle can't touch. Both numbers are
 real and measure different things; we do not conflate them.
 
 The STOP floor is **peripheral-bound, not core-bound**: WeAct's `09-PWR_Test`
-reaches **0.9 mA STANDBY** with everything off, versus our 99 mA with the
-camera and display left powered for instant wake. Gating those too (camera
+reaches **0.9 mA STANDBY** with everything off, versus our 94 mA with the
+camera left powered for instant wake (the panel does enter SLPIN). Gating those too (camera
 PWDN, panel off, QSPI deep-power-down) is the documented path to a
 near-µA floor; future work, not claimed here.
 
@@ -122,7 +122,7 @@ near-µA floor; future work, not claimed here.
   raw log so others can judge transferability.
 - Power figures come from a single instrument (FNIRSI FNB-C2; manufacturer-
   published ±0.05%+2cnt current accuracy, 20-bit ADC). We conservatively
-  treat it as better-than-±1% class; the claims made from it are 1.3×–2.45×
+  treat it as better-than-±1% class; the claims made from it are 1.3×–2.6×
   ratios, orders of magnitude above any plausible instrument error. No
   independent second-meter cross-check has been performed.
 - DWT timings exclude DMA transfers that overlap compute by design (that
