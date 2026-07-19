@@ -71,8 +71,7 @@ static void equation_probe() {
           const int d = (sw > hw) ? sw - hw : hw - sw;
           if (d > maxd) maxd = d;
           if (printed < 8) {
-            Serial.printf("# probe mismatch a=%d b=%d alpha=%d sw=%d hw=%d
-",
+            Serial.printf("# probe mismatch a=%d b=%d alpha=%d sw=%d hw=%d\n",
                           a, b, al, sw, hw);
             printed++;
           }
@@ -80,8 +79,7 @@ static void equation_probe() {
       }
     }
   }
-  Serial.printf("# blend probe: %lu mismatches of %lu, max |diff| %d
-",
+  Serial.printf("# blend probe: %lu mismatches of %lu, max |diff| %d\n",
                 (unsigned long)mism, (unsigned long)total, maxd);
 }
 
@@ -130,8 +128,7 @@ static uint32_t diff_report(const uint8_t *a, const uint8_t *b, uint32_t n,
     if (a[i] != b[i]) {
       mism++;
       if (print_first && printed < 4) {
-        Serial.printf("#   dst[%lu]: sw=%d hw=%d
-", (unsigned long)i,
+        Serial.printf("#   dst[%lu]: sw=%d hw=%d\n", (unsigned long)i,
                       a[i], b[i]);
         printed++;
       }
@@ -142,8 +139,7 @@ static uint32_t diff_report(const uint8_t *a, const uint8_t *b, uint32_t n,
 
 static void run_bench() {
   equation_probe();
-  Serial.printf("# RP2350 bilinear resize -> %dx%d, avg of %d reps
-",
+  Serial.printf("# RP2350 bilinear resize -> %dx%d, avg of %d reps\n",
                 KESTREL_DST_W, KESTREL_DST_H, REPS);
   Serial.println("case,sw_us,interp_us,interp2_us,speedup2,mism1,mism2");
   for (unsigned i = 0; i < sizeof cases / sizeof cases[0]; i++) {
@@ -154,8 +150,7 @@ static void run_bench() {
     const uint32_t mism1 = diff_report(dst_sw, dst_hw, sizeof dst_sw, i == 0);
     const uint64_t us_h2 = time_reps(resize_bilinear_interp2, w, h, dst_hw);
     const uint32_t mism2 = diff_report(dst_sw, dst_hw, sizeof dst_sw, false);
-    Serial.printf("%s,%lu,%lu,%lu,%.2f,%lu,%lu
-", cases[i].label,
+    Serial.printf("%s,%lu,%lu,%lu,%.2f,%lu,%lu\n", cases[i].label,
                   (unsigned long)us_sw, (unsigned long)us_hw,
                   (unsigned long)us_h2,
                   us_h2 ? (double)us_sw / (double)us_h2 : 0.0,
