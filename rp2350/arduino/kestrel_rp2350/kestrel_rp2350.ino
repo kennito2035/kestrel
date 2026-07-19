@@ -4,6 +4,10 @@
  * Functionally identical to the pico-sdk firmware in rp2350/src/:
  *   core 0 (setup/loop):   PIR pre-screen -> H750 wake pulse
  *   core 1 (setup1/loop1): UART detection events -> servo strike
+ * Plus a bring-up aid: every H750 UART line is echoed verbatim to the
+ * USB serial port (115200), so the board doubles as a UART-to-USB
+ * bridge for capturing the H750's CSV telemetry; PIR wake pulses are
+ * logged there too as "# PIR wake pulse <n>".
  *
  * Setup:
  *   1. Install the arduino-pico core (Earle Philhower):
@@ -34,6 +38,7 @@ const int STRIKE_HOLD_MS = 600;
 // ---------- Core 0: PIR pre-screen ----------
 
 volatile bool pirFired = false;
+volatile uint32_t pirWakeCount = 0; // read by core 1 for USB logging
 
 void pirIsr() { pirFired = true; }
 
@@ -50,6 +55,7 @@ void loop() {
     digitalWrite(PIN_WAKE_OUT, HIGH);
     delay(WAKE_PULSE_MS);
     digitalWrite(PIN_WAKE_OUT, LOW);
+    pirWakeCount = pirWakeCount + 1;
     delay(RETRIGGER_HOLD_MS);
   }
   delay(1);
@@ -62,8 +68,10 @@ void loop() {
 
 Servo servo;
 String line;
+uint32_t pirWakePrinted = 0;
 
 void setup1() {
+  Serial.begin(115200);  // USB CDC: transparent echo of H750 telemetry
   Serial1.begin(115200); // UART0: TX=GP0, RX=GP1 (arduino-pico defaults)
   servo.attach(PIN_SERVO, 500, 2500);
   servo.writeMicroseconds(SERVO_REST_US);
@@ -71,10 +79,21 @@ void setup1() {
 }
 
 void loop1() {
+  // All USB prints happen on this core only (no cross-core interleaving).
+  // H750 lines pass through verbatim, so capturing the Serial Monitor
+  // output doubles as the gate_results.csv evidence capture.
+  if (pirWakeCount != pirWakePrinted) {
+    pirWakePrinted = pirWakeCount;
+    Serial.printf("# PIR wake pulse %lu\n", (unsigned long)pirWakePrinted);
+  }
   while (Serial1.available()) {
     char c = (char)Serial1.read();
     if (c == '\n' || c == '\r') {
+      if (line.length() > 0) {
+        Serial.println(line); // verbatim echo to USB
+      }
       if (line.startsWith("DET,person,")) {
+        Serial.println("# strike");
         servo.writeMicroseconds(SERVO_STRIKE_US); // the kestrel's dive
         delay(STRIKE_HOLD_MS);
         servo.writeMicroseconds(SERVO_REST_US);
