@@ -68,10 +68,11 @@ full inference.
   is honestly negative on speed (bit-exact but 0.90×; -O2 ALU wins) and positive on insight:
   it surfaced an undocumented-in-practice lane 1 alpha-masking gotcha that silently degrades
   blend mode to nearest-neighbor.
-- **Honest, reproducible measurement.** Every number in this README is (or will be, before
-  submission) a DWT cycle-counter or ammeter measurement, with raw evidence in
-  [`benchmarks/`](benchmarks/) (CSV, filmed on-device counters, or meter readings noted in
-  the report) and the exact harness code included. No projected numbers.
+- **Honest, reproducible measurement.** Every number in this README is a DWT cycle-counter
+  or ammeter measurement (a single marker outstanding: cascade-idle current, pending a
+  cable adapter), with raw evidence in [`benchmarks/`](benchmarks/) (CSV, filmed on-device
+  counters, or meter readings noted in the report) and the exact harness code included. No
+  projected numbers.
 
 ### Physical AI track fit
 
@@ -88,8 +89,8 @@ Kestrel is a complete **sense → decide → act** loop under real power constra
 
 ## Measurement Methodology: A Note on Honesty
 
-Core numbers are now **measured on hardware** (July 13); remaining **[TBM]** markers are
-pending only the RP2350 cascade wiring and its bench. As a cross-check against published
+All core numbers are **measured on hardware** (July 13-19); the single remaining **[TBM]**
+(cascade-idle current) waits on a cable adapter, nothing else. As a cross-check against published
 references: ST's model zoo lists the deployed model (st_yololcv1 192×192 INT8, COCO person;
 see [`training/README.md`](training/README.md)) at 179ms on an STM32H747 @ 400MHz; we measure
 **180ms on the H750 @ 480MHz executing from QSPI flash**, the same ballpark, with the QSPI
@@ -276,8 +277,9 @@ classes.
 
 ## System Benchmark Plan
 
-All values below are produced by the in-repo harnesses and logged to `benchmarks/*.csv`.
-**[TBM]** markers are replaced with measured data before submission.
+All values below are measured by the in-repo harnesses, with raw evidence in
+[`benchmarks/`](benchmarks/). One marker remains: cascade-idle current, pending
+only a cable adapter in shipping; it is filled before submission.
 
 | Measurement | Instrument | Value |
 |---|---|---|
@@ -294,7 +296,6 @@ All values below are produced by the in-repo harnesses and logged to `benchmarks
 | H750 STOP sleep (panel SLPIN, camera hardware PWDN) | FNB-C2 inline | **82 mA / 0.42 W** |
 | **H750 idle power reduction (always-on → STOP)** | derived | **2.96×** |
 | Cascade idle (H750 STOP + RP2350 PIR-armed) | ammeter | [TBM] (Stage 3) |
-| Small-object detection: full-frame vs ROI crop | eval script | [TBM] |
 
 > Note: the 98–99% skip figure is a **compute** reduction; whole-**board**
 > idle power drops **2.96×**; the regulator chain and board set the

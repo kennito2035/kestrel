@@ -2,15 +2,15 @@
 
 **Status: inference latency, skip rate, per-stage timings, the power
 table and the RP2350 interpolator bench measured on hardware (July
-13-19); only the cascade-idle power row remains (Stage-3 wiring in
-progress).** Every remaining `[TBM]` is replaced by a measured value
+13-19); the cascade is wired and functionally verified end to end; only
+the cascade-idle power row remains, pending a cable adapter.** Every remaining `[TBM]` is replaced by a measured value
 before submission. No projected numbers appear in this report.
 
 ## Instruments
 
 | What | Instrument | Why it's the right tool |
 |---|---|---|
-| Per-stage latency (H750) | DWT cycle counter @ 480MHz (`benchmark.c`) | Cycle-exact, zero-overhead reads, on the device under test |
+| Per-stage latency (H750) | DWT cycle counter @ 480MHz (in-firmware reads in `main.c`; warm-run bench via `benchmark.c`) | Cycle-exact, zero-overhead reads, on the device under test |
 | Per-stage latency (RP2350) | `time_us_64()` over 100-rep loops | µs resolution amortized over reps |
 | Skip rate | Gate log over ≥10 min of a real scene | Captures real sensor noise + real activity patterns |
 | Current draw | FNIRSI FNB-C2 inline USB meter (20-bit ADC, 1µA resolution, published ±0.05%+2cnt current accuracy) | Whole-board truth, includes regulators and peripherals |
@@ -61,8 +61,9 @@ warm benchmark and multi-hour live sessions).
 ### Skip rate and average compute
 
 Evidence: on-device session counters, filmed;
-`skiprate_2026-07-13_daylight.mp4` / `skiprate_2026-07-13_night.mp4`
-(UART `gate_results.csv` capture lands once headers are soldered).
+`skiprate_2026-07-13_daylight.mp4` / `skiprate_2026-07-13_night.mp4`.
+(With headers now soldered, the firmware's live `gate,...` CSV can also
+be captured over the RP2350's USB echo and fed to `summarize.py`.)
 
 | Scene | Duration | Frames | Skip rate | Avg per-frame cost | vs always-on |
 |---|---|---|---|---|---|
@@ -138,5 +139,11 @@ power LED) is the documented path to a near-µA floor; future work, not claimed 
   treat it as better-than-±1% class; the claims made from it are 1.3×–3.0×
   ratios, orders of magnitude above any plausible instrument error. No
   independent second-meter cross-check has been performed.
+- Timing figures are means or windows without formal dispersion statistics;
+  on cacheless single-cycle SRAM (RP2350) and the deterministic bare-metal
+  loop (H750) observed run-to-run spread is sub-microsecond and ±1 ms
+  respectively. Power states are single-session captures, stable to the mA
+  over the >=10 s settle window; repeat-run variance was not separately
+  quantified.
 - DWT timings exclude DMA transfers that overlap compute by design (that
   overlap is itself one of the optimizations).
