@@ -18,7 +18,7 @@
 
 #include <pico/stdlib.h>
 #include "hw_interpolator_resize.h"
-#include "hw_interpolator_resize.inc"
+#include "hw_interpolator_resize_impl.h"
 
 #define REPS 100
 
