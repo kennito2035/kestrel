@@ -1,9 +1,10 @@
 # Kestrel Benchmark Report
 
-**Status: inference latency and skip rate measured on hardware (July 13);
-power table and RP2350 interpolator bench pending (meter in shipping /
-headers unsoldered).** Every remaining `[TBM]` is replaced by a measured
-value before submission. No projected numbers appear in this report.
+**Status: inference latency, skip rate, per-stage timings and the power
+table measured on hardware (July 13); RP2350 interpolator bench and
+cascade-idle power row pending (headers unsoldered).** Every remaining
+`[TBM]` is replaced by a measured value before submission. No projected
+numbers appear in this report.
 
 ## Instruments
 
@@ -53,11 +54,9 @@ inference; this is precisely the workload the RP2350 hardware-interpolator
 resize artifact (`rp2350/`) offloads, a concrete case for heterogeneous
 compute. Gate-check scalar-vs-SIMD comparison pending (only the SIMD path is
 compiled in the shipping build).
-| **Gate-to-inference cost ratio** | **[TBM]** | - |
 
 Inference latency is deterministic run-to-run (±1 ms window over 20-run
-warm benchmark and multi-hour live sessions). Per-stage gate/preproc
-timings await the soldered-UART CSV capture.
+warm benchmark and multi-hour live sessions).
 
 ### Skip rate and average compute
 
