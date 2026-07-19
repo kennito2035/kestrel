@@ -69,8 +69,9 @@ full inference.
   it surfaced an undocumented-in-practice lane 1 alpha-masking gotcha that silently degrades
   blend mode to nearest-neighbor.
 - **Honest, reproducible measurement.** Every number in this README is (or will be, before
-  submission) a DWT cycle-counter or ammeter measurement, logged to CSV in
-  [`benchmarks/`](benchmarks/), with the exact harness code included. No projected numbers.
+  submission) a DWT cycle-counter or ammeter measurement, with raw evidence in
+  [`benchmarks/`](benchmarks/) (CSV, filmed on-device counters, or meter readings noted in
+  the report) and the exact harness code included. No projected numbers.
 
 ### Physical AI track fit
 
@@ -78,7 +79,7 @@ Kestrel is a complete **sense → decide → act** loop under real power constra
 
 | Track pillar | Where Kestrel delivers it |
 |---|---|
-| Deterministic real-time performance | Bare-metal, no OS, no scheduler jitter; fixed-cost gate and inference paths; we report **p95 latencies**, not just averages |
+| Deterministic real-time performance | Bare-metal, no OS, no scheduler jitter; fixed-cost gate and inference paths; inference holds a **178-181 ms window** across multi-hour sessions (no latency tail to report) |
 | Efficient, scalable compute | Three-level attention cascade, each watcher orders of magnitude cheaper than the next; average compute scales with scene activity |
 | Heterogeneous workloads | Cortex-M7 runs perception/inference; dual Cortex-M33 handles the always-on sensing and motor control, each core class doing what it's most efficient at |
 | Reliability | Gate failure mode is fail-open (unrecognized states run full inference); PIR provides an inference-independent wake path |
@@ -437,9 +438,11 @@ python golden.py   # regenerates golden vectors and cross-checks the C results
 
 - **Gate timing / inference timing (H750):** `benchmark.c` wraps each stage with DWT cycle
   counts and prints per-stage ms over UART (115200). Enable with `BENCHMARK_ENABLE 1`.
-- **Skip rate:** set `BENCHMARK_GATE_LOG 1`; logs `CLOSED`/`OPEN` + ROI area % every 100
-  frames; leave running on your scene for 10 minutes and feed the CSV to
-  `benchmarks/summarize.py`.
+- **Skip rate:** the shipping firmware streams a `gate,...` CSV line every 16 frames over
+  UART (PA9, 115200; the RP2350 cascade sketch echoes it to USB serial). Leave it running
+  on your scene for 10+ minutes, capture the serial output to a file, and feed it to
+  `benchmarks/summarize.py` (the standalone module scaffold under `stm32h750/Core/` also
+  offers `BENCHMARK_GATE_LOG` for gate-only builds).
 - **Interpolator vs software resize (RP2350):** flash
   `rp2350/arduino/kestrel_interp_bench/` (or the pico-sdk `interp_resize_bench`
   target); a single run times both paths and prints the CSV table, speedup and
