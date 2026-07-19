@@ -75,6 +75,14 @@ void resize_bilinear_interp(const uint8_t *src, uint16_t src_w, uint16_t src_h,
     interp_config cfg = interp_default_config();
     interp_config_set_blend(&cfg, true);
     interp_set_config(interp0, 0, &cfg);
+    /* HARDWARE GOTCHA (found on silicon, invisible in host builds): the
+     * blend alpha is LANE1's shifted-and-masked RESULT, not the raw
+     * ACCUM1 value. CTRL_LANE1 resets with a bit0-only mask, silently
+     * truncating alpha to 0/1 (blend degenerates to nearest-neighbor,
+     * ~95% of blends wrong). Lane 1 must be configured to pass ACCUM1
+     * through: */
+    cfg = interp_default_config();
+    interp_set_config(interp0, 1, &cfg);
 
     const uint32_t x_step = step_fp16(src_w, KESTREL_DST_W);
     const uint32_t y_step = step_fp16(src_h, KESTREL_DST_H);
