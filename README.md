@@ -295,6 +295,7 @@ only a cable adapter in shipping; it is filled before submission.
 | H750 gate-only, awake, scene idle (~99% skip) | FNB-C2 inline | **186 mA / 0.95 W** (−23%) |
 | H750 STOP sleep (panel SLPIN, camera hardware PWDN) | FNB-C2 inline | **82 mA / 0.42 W** |
 | **H750 idle power reduction (always-on → STOP)** | derived | **2.96×** |
+| Die temperature, 10 min always-on vs 10 min gated | internal sensor (factory cal) | **46 °C vs 36 °C** (delta conservative; see report) |
 | Cascade idle (H750 STOP + RP2350 PIR-armed) | FNB-C2 inline | [TBM] (pending cable adapter) |
 
 > Note: the 98–99% skip figure is a **compute** reduction; whole-**board**

@@ -118,6 +118,15 @@ Throughput follows the same split: **always-on ≈ 5 FPS** (bounded by the
 (full camera rate, inference skipped). So gating makes the display both
 **faster and cooler** at once, 15 FPS @ 0.95 W vs 5 FPS @ 1.24 W.
 
+Cooler is literal, not rhetorical (measured July 20): the H750's internal
+die sensor (ADC3 channel 18, factory two-point calibration) reads
+**46 °C after 10 minutes always-on versus 36 °C after 10 minutes
+gated-awake** on the same still scene, same session, same ambient, with
+sleep disabled (`SLEEP_IDLE_MS 600000`) so the comparison isolates
+compute gating. Always-on ran first, so residual heat biases the gated
+figure warm; the **10 °C delta is conservative**. Absolute values track
+ambient; the delta is the claim.
+
 **Reading these honestly:** the 98–99% figure above is a *compute* reduction
 (frames that skip the 180 ms inference). Whole-**board** power reduction is
 smaller, **2.96×**, because the 3.3V regulator chain and board
