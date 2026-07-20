@@ -377,25 +377,36 @@ git clone https://github.com/YOUR_USERNAME/kestrel.git
 cd kestrel
 ```
 
-### Step 1: Get the model
+### Step 1: Model (nothing to do for a stock build)
 
-Download the pretrained INT8 person-detection model from the ST Model Zoo (see
-`training/README.md` for the exact model and link), or retrain via the notebooks in
-`training/` for custom classes.
+The deployed network is already committed as generated code
+(`network*.c` under `stm32h750/firmware/08-DCMI2LCD/`), so building
+needs no model download. To regenerate or retrain: `training/README.md`
+has the exact ST Model Zoo model and download link, and points at ST's
+`stm32ai-modelzoo-services` scripted pipeline for custom classes.
+Regenerate with `stedgeai generate` on the command line, NOT via the
+CubeMX GUI, which silently emits empty stubs (see
+[`docs/troubleshooting.md`](docs/troubleshooting.md)).
 
-### Step 2: Import model into X-CUBE-AI
+### Step 2: Open the firmware project
 
-1. Open `stm32h750/STM32H750_Kestrel.ioc` in STM32CubeIDE
-2. **Middleware → X-CUBE-AI → Add network** → import the `.tflite` (compression: None)
-3. **Analyze**; confirm activations fit SRAM and weights fit QSPI; record the report
-   (it feeds the benchmark tables)
-4. **Generate Code**
+1. Install the **X-CUBE-AI 10.2.1** pack via CubeMX's pack manager (the
+   project references its headers and runtime library; if your pack
+   lives elsewhere, fix the two paths per the troubleshooting guide)
+2. STM32CubeIDE → **File → Import → Existing Projects into Workspace** →
+   select `stm32h750/firmware/08-DCMI2LCD/`
+3. If you ever press CubeMX **Generate Code**: re-apply the VOS0 and
+   FLASH_LATENCY_1 lines it reverts (the recurring trap; see
+   troubleshooting)
 
-### Step 3: Build and flash the STM32H750
+### Step 3: Build and flash the STM32H750 (no debug probe needed)
 
-Build All (Ctrl+B), then Run → Debug (F11). Weights are placed in memory-mapped QSPI flash
-by the linker script; verify the map file shows activations in AXI SRAM with room for the
-two 19KB grayscale gate buffers.
+Build All (Ctrl+B) produces `Debug/08-DCMI2LCD.hex`. Flash over USB via
+the WeAct HID bootloader: hold **K1**, replug USB, release K1 at the
+slow LED blink, run `WeAct_HID_Flash` (WeAct MiniSTM32H7xx SDK) and
+select the hex; the board reboots into the app. Weights sit in
+memory-mapped QSPI flash via the linker script; activations live in AXI
+SRAM with room for the two 19KB grayscale gate buffers in DTCM.
 
 ### Step 4: Build and flash the RP2350
 

@@ -6,6 +6,7 @@
   RP2350-USB minis share an identical board layout and pinout, and the chip
   on Kestrel's actual board is an RP2350 (verified against the physical
   part). Wiring shown is valid for both.
-- STM32H750 board schematic, datasheets, and camera/LCD references live in
-  `third_party/MiniSTM32H7xx-master/` (local only, gitignored); see
-  `Hardware/STM32H7xx SchDoc V12.pdf` there for the H750 side.
+- STM32H750 board schematic, datasheets, and camera/LCD references: WeAct's
+  upstream repository, https://github.com/WeActStudio/MiniSTM32H7xx (see
+  `Hardware/STM32H7xx SchDoc V12.pdf` there for the H750 side, including the
+  SB1/PA7 camera-PWDN solder bridge and the DCMI power tree).
