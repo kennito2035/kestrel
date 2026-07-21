@@ -684,9 +684,18 @@ int main(void)
         k1_last = 1;         /* swallow a K1 wake-press: no gating toggle */
         uart_printf("stop,wake,%lu\r\n", HAL_GetTick());
 
-        /* Camera back on first (PWDN low); the panel's 120ms SLPOUT
-         * settle below doubles as the sensor's resume time */
+        /* Camera back on (PWDN low), then a FULL re-init. Streaming does
+         * resume from bare PWDN release, but the sensor's black-level and
+         * AWB state can come back wedged (dark frames, purple light
+         * sources); re-running the init table, soft reset included,
+         * restores boot-identical quality. ~0.4s of wake latency. */
         HAL_GPIO_WritePin(GPIOA, GPIO_PIN_7, GPIO_PIN_RESET);
+        HAL_Delay(20);                     /* sensor out of standby */
+        #ifdef TFT96
+        Camera_Init_Device(&hi2c1, FRAMESIZE_QQVGA);
+        #elif TFT18
+        Camera_Init_Device(&hi2c1, FRAMESIZE_QQVGA2);
+        #endif
 
         /* Panel wake: SLPOUT needs 120ms before further commands */
         {

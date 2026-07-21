@@ -151,7 +151,14 @@ CPU = 480 MHz, `HSE_VALUE` in `stm32h7xx_hal_conf.h` = 25000000.
   power-down is the hardware PWDN line: solder bridge **SB1** (bridged)
   routes PA7 → DVP_PWDN; silkscreen, schematic and WeAct's OpenMV port
   all confirm PA7 (NOT PD4, which is SB2/MicroSD_SW). Driving PA7 high in
-  STOP drops the floor 94 → 82 mA; wake re-streams cleanly, registers retained.
+  STOP drops the floor 94 → 82 mA.
+- **Wake from PWDN needs a full `Camera_Init_Device()` re-init.** Bare
+  PWDN release does resume streaming (which makes quick tests pass), but
+  the sensor's black-level/AWB state can come back wedged: persistently
+  dark video with purple-magenta light sources. Re-running the init
+  table (soft reset included) on wake restores boot-identical quality at
+  ~0.4 s wake cost. A brief exposure settle in the first second after
+  wake is normal AEC convergence, not this bug.
 - Wake sources: PC0 rising edge (RP2350 in Stage 3; jumper to 3V3 to fake
   it) or K1. A K1 wake-press is swallowed so it doesn't toggle gating.
 
