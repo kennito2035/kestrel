@@ -1,10 +1,8 @@
 # Kestrel Benchmark Report
 
-**Status: inference latency, skip rate, per-stage timings, the power
-table and the RP2350 interpolator bench measured on hardware (July
-13-19); the cascade is wired and functionally verified end to end; only
-the cascade-idle power row remains, pending a cable adapter.** Every remaining `[TBM]` is replaced by a measured value
-before submission. No projected numbers appear in this report.
+**Status: complete. Every number in this report is measured on
+hardware (July 13-21); the cascade is wired and functionally verified
+end to end. No projected numbers and no pending markers remain.**
 
 ## Instruments
 
@@ -111,12 +109,22 @@ observed after ≥10s settle.
 | STOP sleep (panel SLPIN, camera hardware PWDN) | **82 mA** | **0.42 W** | regulators + board still powered |
 | **Gate saving while awake** | 243→186 mA | **−23% (1.31×)** | pure compute-gating effect |
 | **STOP vs always-on (H750-only idle reduction)** | 243→82 mA | **−66% (2.96×)** | headline (this board) |
-| Cascade idle (H750 STOP + RP2350 PIR-armed) | [TBM] | [TBM] | pending cable adapter |
+| Cascade idle (H750 STOP + RP2350 PIR-armed) | **174 mA** (82 + 92) | **0.89 W** | summed; see note below |
 
 Throughput follows the same split: **always-on ≈ 5 FPS** (bounded by the
 ~180 ms/frame inference, 1000/180 ≈ 5.5) versus **gated-idle ≈ 15 FPS**
 (full camera rate, inference skipped). So gating makes the display both
 **faster and cooler** at once, 15 FPS @ 0.95 W vs 5 FPS @ 1.24 W.
+
+The cascade-idle row (measured July 21) is the sum of two sequential
+single-meter readings, one per board's own 5 V feed: H750 side 82 mA
+(asleep: STOP + panel SLPIN + camera PWDN) plus RP2350 watcher side
+92 mA (5.129 V, PIR quiescent and idle servo included, PIR trigger line
+disconnected during the window). The armed two-board cascade therefore
+idles below a single H750 running always-on (174 vs 243 mA). The
+watcher side is deliberately unoptimized (busy-wait loops, servo
+holding current, no RP2350 dormant mode); tightening it is future work,
+not claimed.
 
 Cooler is literal, not rhetorical (measured July 20): the H750's internal
 die sensor (ADC3 channel 18, factory two-point calibration) reads
