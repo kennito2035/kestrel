@@ -34,6 +34,8 @@ third_party/
 
 # Personal planning/runbook files; stay on this machine, never pushed
 TODO.md
+VIDEO_SCRIPT.md
+DEVPOST.md
 docs/day1_cubeide_bringup.md
 
 # Host test artifacts
