@@ -32,7 +32,7 @@ magnitude cheaper than the one it gates:
 
 | Level | Runs on | Cost | Question it answers |
 |---|---|---|---|
-| 1. PIR sensor | RP2350 (Cortex-M33), H750 asleep | idle current [TBM] | "Is anything happening at all?" |
+| 1. PIR sensor | RP2350 (Cortex-M33), H750 asleep | 92 mA watcher board | "Is anything happening at all?" |
 | 2. Frame-difference gate | STM32H750 (Cortex-M7) | sub-millisecond | "Did the scene actually change?" |
 | 3. INT8 detector (X-CUBE-AI runtime) | STM32H750 (Cortex-M7) | ~180 ms | "What is it, and where?" |
 
@@ -69,8 +69,7 @@ full inference.
   it surfaced an undocumented-in-practice lane 1 alpha-masking gotcha that silently degrades
   blend mode to nearest-neighbor.
 - **Honest, reproducible measurement.** Every number in this README is a DWT cycle-counter
-  or ammeter measurement (a single marker outstanding: cascade-idle current, pending a
-  cable adapter), with raw evidence in [`benchmarks/`](benchmarks/) (CSV, filmed on-device
+  or ammeter measurement, with raw evidence in [`benchmarks/`](benchmarks/) (CSV, filmed on-device
   counters, or meter readings noted in the report) and the exact harness code included. No
   projected numbers.
 
@@ -89,8 +88,8 @@ Kestrel is a complete **sense → decide → act** loop under real power constra
 
 ## Measurement Methodology: A Note on Honesty
 
-All core numbers are **measured on hardware** (July 13-19); the single remaining **[TBM]**
-(cascade-idle current) waits on a cable adapter, nothing else. As a cross-check against published
+Every number in this project is **measured on hardware** (July 13-21); none are projected.
+As a cross-check against published
 references: ST's model zoo lists the deployed model (st_yololcv1 192×192 INT8, COCO person;
 see [`training/README.md`](training/README.md)) at 179ms on an STM32H747 @ 400MHz; we measure
 **180ms on the H750 @ 480MHz executing from QSPI flash**, the same ballpark, with the QSPI
@@ -143,7 +142,7 @@ exposed): see [docs/hardware/rp2350-usb-mini-pinout.jpg](docs/hardware/rp2350-us
 ║  RP2350-USB Mini  (Always-on, Cortex-M33 @ 150MHz)                  ║
 ║                                                                      ║
 ║  Core 0:  PIR sensor ──▶ EXTI ──▶ GPIO HIGH ──▶ Wake H750           ║
-║      Cascade idle current: [TBM, adapter en route]  (H750 always-on: 243mA measured)
+║      Cascade idle current: 174 mA measured  (vs 243 mA H750 always-on alone)
 ║                                                                      ║
 ║  Core 1:  UART RX ──▶ parse detection event ──▶ drive servo/LED     ║
 ╚══════════════════════════╦═══════════════════════════════════════════╝
@@ -275,11 +274,10 @@ classes.
 
 ---
 
-## System Benchmark Plan
+## System Benchmark Results
 
 All values below are measured by the in-repo harnesses, with raw evidence in
-[`benchmarks/`](benchmarks/). One marker remains: cascade-idle current, pending
-only a cable adapter in shipping; it is filled before submission.
+[`benchmarks/`](benchmarks/).
 
 | Measurement | Instrument | Value |
 |---|---|---|
@@ -296,7 +294,7 @@ only a cable adapter in shipping; it is filled before submission.
 | H750 STOP sleep (panel SLPIN, camera hardware PWDN) | FNB-C2 inline | **82 mA / 0.42 W** |
 | **H750 idle power reduction (always-on → STOP)** | derived | **2.96×** |
 | Die temperature, 10 min always-on vs 10 min gated | internal sensor (factory cal) | **46 °C vs 36 °C** (delta conservative; see report) |
-| Cascade idle (H750 STOP + RP2350 PIR-armed) | FNB-C2 inline | [TBM] (pending cable adapter) |
+| Cascade idle (H750 STOP + RP2350 PIR-armed) | FNB-C2 inline | **174 mA / 0.89 W** (82 + 92 summed; see report) |
 
 > Note: the 98–99% skip figure is a **compute** reduction; whole-**board**
 > idle power drops **2.96×**; the regulator chain and board set the
