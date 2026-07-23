@@ -286,7 +286,7 @@ All values below are measured by the in-repo harnesses, with raw evidence in
 | Crop + resize to 192×192 (SW) | DWT | **12.6 ms** (software, `-O2`) |
 | Full inference, per invocation | DWT | **180 ms** (178–181 ms window, deterministic) |
 | Gate-to-inference cost ratio | derived | **≈1,000×** (178 ms ÷ 173 µs) |
-| Processing throughput | on-device FPS | **~5 FPS always-on → ~15 FPS gated-idle** |
+| Processing throughput | on-device FPS | **~5 FPS always-on → ~15 FPS gated-idle** (why these two ceilings: see the report) |
 | Skip rate, typical indoor scene, 10+ min | on-device counters, filmed (`benchmarks/`) | **98.2%** daylight (20 min) / **99.1%** night (12.5 min) |
 | **Average per-frame compute reduction** | derived | **~56× daylight / ~115× night** |
 | H750 always-on, no gating (whole board @5V) | FNB-C2 inline | **243 mA / 1.24 W** |

@@ -116,6 +116,29 @@ Throughput follows the same split: **always-on ≈ 5 FPS** (bounded by the
 (full camera rate, inference skipped). So gating makes the display both
 **faster and cooler** at once, 15 FPS @ 0.95 W vs 5 FPS @ 1.24 W.
 
+Why those two ceilings, since neither is a Cortex-M7 limit:
+
+- **15 FPS is the camera configuration, not a hardware maximum.** The
+  OV2640 runs from the H750's MCO1 output at 12 MHz (HSI48 / 4, see
+  `HAL_RCC_MCOConfig` in `Src/main.c`) with WeAct's proven QQVGA
+  register set, which yields ~15 fps. A faster sensor clock or
+  retuned sensor PLL would give more; we deliberately froze the
+  vendor-validated camera configuration (the sensor is the most
+  fragile subsystem in the build, see the PWDN notes in
+  `docs/troubleshooting.md`) because frame rate is not the bottleneck:
+  the gate needs only consecutive frames to difference, and a person
+  crossing a room is heavily oversampled at 15 Hz.
+- **5 FPS is arithmetic, not a ceiling we chose.** With gating off,
+  every displayed frame pays ~180 ms inference + ~13 ms resize + the
+  display push, so the loop completes about five times a second. The
+  camera still delivers 15; frames arriving mid-inference are
+  overwritten in the capture buffer and the loop always processes the
+  newest one.
+
+The gap between the two is exactly the compute the gate recovers, and
+the architecture's benefit is independent of the sensor rate: at 30 fps
+the gate would simply skip twice as many frames.
+
 The cascade-idle row (measured July 21) is the sum of two sequential
 single-meter readings, one per board's own 5 V feed: H750 side 82 mA
 (asleep: STOP + panel SLPIN + camera PWDN) plus RP2350 watcher side
