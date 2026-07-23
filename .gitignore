@@ -37,6 +37,8 @@ TODO.md
 VIDEO_SCRIPT.md
 DEVPOST.md
 kestrel_deck.pptx
+# Office lock files (appear whenever the deck is open)
+~$*
 docs/day1_cubeide_bringup.md
 
 # Host test artifacts
