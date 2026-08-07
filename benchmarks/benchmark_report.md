@@ -1,6 +1,6 @@
 # Kestrel Benchmark Report
 
-**Status: complete. Every number in this report is measured on
+**Every number in this report is measured on
 hardware (July 13-21); the cascade is wired and functionally verified
 end to end. No projected numbers and no pending markers remain.**
 
