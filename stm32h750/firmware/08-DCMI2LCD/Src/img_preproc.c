@@ -43,16 +43,20 @@ static inline void sample_bilinear(const uint16_t *src, int src_w, int src_h,
   unpack565(row1[x0], &r10, &g10, &b10);
   unpack565(row1[x1], &r11, &g11, &b11);
 
-  int32_t r0 = r00 + (int32_t)((fx * (int32_t)(r01 - r00)) >> 16);
-  int32_t g0 = g00 + (int32_t)((fx * (int32_t)(g01 - g00)) >> 16);
-  int32_t b0 = b00 + (int32_t)((fx * (int32_t)(b01 - b00)) >> 16);
-  int32_t r1 = r10 + (int32_t)((fx * (int32_t)(r11 - r10)) >> 16);
-  int32_t g1 = g10 + (int32_t)((fx * (int32_t)(g11 - g10)) >> 16);
-  int32_t b1 = b10 + (int32_t)((fx * (int32_t)(b11 - b10)) >> 16);
+  /* All lerp arithmetic must stay signed: fx/fy are <= 0xFFFF and the
+   * pixel diff is within +/-255, so the product fits int32 comfortably.
+   * (A uint32 multiply here followed by a logical >>16 corrupts every
+   * sample whose gradient is negative: the classic bug this replaces.) */
+  int32_t r0 = r00 + (((int32_t)fx * (r01 - r00)) >> 16);
+  int32_t g0 = g00 + (((int32_t)fx * (g01 - g00)) >> 16);
+  int32_t b0 = b00 + (((int32_t)fx * (b01 - b00)) >> 16);
+  int32_t r1 = r10 + (((int32_t)fx * (r11 - r10)) >> 16);
+  int32_t g1 = g10 + (((int32_t)fx * (g11 - g10)) >> 16);
+  int32_t b1 = b10 + (((int32_t)fx * (b11 - b10)) >> 16);
 
-  out[0] = (uint8_t)(r0 + (int32_t)((fy * (int32_t)(r1 - r0)) >> 16));
-  out[1] = (uint8_t)(g0 + (int32_t)((fy * (int32_t)(g1 - g0)) >> 16));
-  out[2] = (uint8_t)(b0 + (int32_t)((fy * (int32_t)(b1 - b0)) >> 16));
+  out[0] = (uint8_t)(r0 + (((int32_t)fy * (r1 - r0)) >> 16));
+  out[1] = (uint8_t)(g0 + (((int32_t)fy * (g1 - g0)) >> 16));
+  out[2] = (uint8_t)(b0 + (((int32_t)fy * (b1 - b0)) >> 16));
 }
 
 void preproc_rgb565_to_rgb888(const uint16_t *src, int src_w, int src_h,
