@@ -66,6 +66,9 @@ python3 golden.py   # cross-language golden check (3rd independent impl)
 against an independent single-pass reference implementation; it then dumps
 `results.csv`, which `golden.py` re-derives in pure Python and diffs.
 
-The SIMD path is bit-exact with the scalar path by construction and is
-verified on target hardware (see `stm32h750/Core/Src/benchmark.c`), since
-SIMD32 intrinsics cannot execute on a PC host.
+The SIMD path is bit-exact with the scalar path by construction; SIMD32
+intrinsics cannot execute on a PC host, so CI proves it compiles for
+Cortex-M7 and M33, and it is the path built into the shipping H750
+firmware (`KESTREL_GATE_SIMD=1`), so every on-target gate measurement
+exercises it. A dedicated scalar-vs-SIMD timing comparison is still
+pending (noted in `benchmarks/benchmark_report.md`).

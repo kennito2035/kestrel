@@ -10,8 +10,10 @@ endif()
 # the -DPICO_SDK_PATH=... cmake argument.
 if(DEFINED PICO_SDK_PATH)
     include(${PICO_SDK_PATH}/external/pico_sdk_import.cmake)
-else()
+elseif(DEFINED ENV{PICO_SDK_PATH})
     include($ENV{PICO_SDK_PATH}/external/pico_sdk_import.cmake)
+else()
+    message(FATAL_ERROR "PICO_SDK_PATH is not set: pass -DPICO_SDK_PATH=/path/to/pico-sdk or export it in the environment")
 endif()
 
 project(kestrel_rp2350 C CXX ASM)
@@ -46,4 +48,6 @@ target_link_libraries(interp_resize_bench
     hardware_interp
 )
 pico_enable_stdio_usb(interp_resize_bench 1)
+# Same rationale as the main firmware: keep stdio off the GP0/GP1 UART.
+pico_enable_stdio_uart(interp_resize_bench 0)
 pico_add_extra_outputs(interp_resize_bench)

@@ -139,12 +139,12 @@ exposed): see [docs/hardware/rp2350-usb-mini-pinout.jpg](docs/hardware/rp2350-us
 
 ```
 ╔══════════════════════════════════════════════════════════════════════╗
-║  RP2350-USB Mini  (Always-on, Cortex-M33 @ 150MHz)                  ║
+║  RP2350-USB Mini  (Always-on, Cortex-M33 @ 150MHz)                   ║
 ║                                                                      ║
-║  Core 0:  PIR sensor ──▶ EXTI ──▶ GPIO HIGH ──▶ Wake H750           ║
-║      Cascade idle current: 174 mA measured  (vs 243 mA H750 always-on alone)
+║  Core 0:  PIR sensor ──▶ EXTI ──▶ GPIO HIGH ──▶ Wake H750            ║
+║      Cascade idle: 174 mA measured (vs 243 mA always-on H750 alone)  ║
 ║                                                                      ║
-║  Core 1:  UART RX ──▶ parse detection event ──▶ drive servo/LED     ║
+║  Core 1:  UART RX ──▶ parse detection event ──▶ drive servo          ║
 ╚══════════════════════════╦═══════════════════════════════════════════╝
                            ║ GPIO wake pulse
 ╔══════════════════════════▼═══════════════════════════════════════════╗
@@ -153,29 +153,29 @@ exposed): see [docs/hardware/rp2350-usb-mini-pinout.jpg](docs/hardware/rp2350-us
 ║  OV2640 ──DCMI+DMA──▶ Frame Buffer (160×120 RGB565)                  ║
 ║                └──▶ grayscale convert ──▶ 160×120 ×8bit (~19KB)      ║
 ║                                                                      ║
-║  ┌──────────────────────────────────────────────────────────────┐   ║
-║  │  GATE STAGE  (0.5 ms meas.)                                  │   ║
-║  │                                                              │   ║
-║  │  Abs diff: current grayscale frame vs previous               │   ║
-║  │  Changed-pixel count ──▶ threshold check                     │   ║
-║  │                                                              │   ║
-║  │  No significant change? ──▶ keep last result, back to        │   ║
-║  │                             STOP mode. Inference skipped.    │   ║
-║  │                                                              │   ║
-║  │  Change detected? ──▶ bounding box of changed region         │   ║
-║  │                       (the "attention ROI")                  │   ║
-║  └────────────────────────────┬─────────────────────────────────┘   ║
+║  ┌──────────────────────────────────────────────────────────────┐    ║
+║  │  GATE STAGE  (0.5 ms meas.)                                  │    ║
+║  │                                                              │    ║
+║  │  Abs diff: current grayscale frame vs previous               │    ║
+║  │  Changed-pixel count ──▶ threshold check                     │    ║
+║  │                                                              │    ║
+║  │  No significant change? ──▶ keep last result, back to        │    ║
+║  │                             STOP mode. Inference skipped.    │    ║
+║  │                                                              │    ║
+║  │  Change detected? ──▶ bounding box of changed region         │    ║
+║  │                       (the "attention ROI")                  │    ║
+║  └────────────────────────────┬─────────────────────────────────┘    ║
 ║                               │ attention ROI                        ║
-║  ┌────────────────────────────▼─────────────────────────────────┐   ║
-║  │  INFERENCE STAGE  (fixed cost per invocation)                │   ║
-║  │                                                              │   ║
-║  │  Crop ROI (padded to square) ──▶ resize to 192×192 input     │   ║
-║  │    → same inference cost as full frame, but the moving       │   ║
-║  │      object fills the model's field of view (digital zoom)   │   ║
-║  │  INT8 detector, X-CUBE-AI runtime (M7 kernels)               │   ║
-║  │  Weights: QSPI flash (XIP)   Activations: AXI SRAM           │   ║
-║  │  Per-inference latency: 180 ms measured, ±1 ms               │   ║
-║  └────────────────────────────┬─────────────────────────────────┘   ║
+║  ┌────────────────────────────▼─────────────────────────────────┐    ║
+║  │  INFERENCE STAGE  (fixed cost per invocation)                │    ║
+║  │                                                              │    ║
+║  │  Crop ROI (padded to square) ──▶ resize to 192×192 input     │    ║
+║  │    → same inference cost as full frame, but the moving       │    ║
+║  │      object fills the model's field of view (digital zoom)   │    ║
+║  │  INT8 detector, X-CUBE-AI runtime (M7 kernels)               │    ║
+║  │  Weights: QSPI flash (XIP)   Activations: AXI SRAM           │    ║
+║  │  Per-inference latency: 180 ms measured, ±1 ms               │    ║
+║  └────────────────────────────┬─────────────────────────────────┘    ║
 ║                               │                                      ║
 ║  NMS ──▶ coords mapped ROI→frame ──▶ TFT (boxes + gate HUD)          ║
 ║      └──▶ UART TX ──▶ RP2350 Core 1 (detection event)                ║
@@ -359,8 +359,9 @@ kestrel/
 ```
 
 The CubeIDE project under `stm32h750/firmware/` depends on code generation
-for this specific board; everything in `modules/`, `rp2350/`, and the
-harnesses is written and host-tested in CI.
+for this specific board. CI host-tests the gate module and the resize
+software path and cross-compiles the gate for Cortex-M7/M33; the firmware
+apps themselves build in their own toolchains (CubeIDE, pico-sdk/Arduino).
 
 ---
 

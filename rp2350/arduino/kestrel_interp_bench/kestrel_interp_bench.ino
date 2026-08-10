@@ -5,12 +5,12 @@
  * vs pure-software bilinear resize, 100-rep averages, mismatch counts), plus
  * two extras the SDK bench does not have: a second INTERP variant using
  * packed BASE_1AND0 writes, and a blend-equation probe. This sketch's CSV is
- * therefore wider (case,sw_us,interp_us,interp2_us,speedup2,mism1,mism2);
- * the committed benchmarks/interpolator_results.csv keeps the pico-sdk
- * bench's column set (case,sw_us,interp_us,speedup,bit_exact), with the
- * published numbers taken from this sketch's sw_us/interp_us columns.
- * Flash, then open the Serial Monitor at 115200 (the table reprints
- * every 10 s so a late-opened monitor still catches it).
+ * therefore wider (case,sw_us,interp_us,interp2_us,speedup2,mism1,mism2).
+ * The committed benchmarks/interpolator_results.csv is a commented, curated
+ * summary of THIS sketch's numbers: its sw_us/interp_us/interp2_us columns,
+ * speedup recomputed as sw_us/interp_us, and the mismatch counts collapsed
+ * into a bit_exact flag. Flash, then open the Serial Monitor at 115200
+ * (the table reprints every 10 s so a late-opened monitor still catches it).
  *
  * Board: Tools > Board > "Generic RP2350", Flash Size 16MB
  * (arduino-pico core by Earle Philhower). The pragma below pins the

@@ -2,7 +2,8 @@
 
 **Every number in this report is measured on
 hardware (July 13-21); the cascade is wired and functionally verified
-end to end. No projected numbers and no pending markers remain.**
+end to end. No projected numbers remain; the one open measurement is the
+gate scalar-vs-SIMD timing comparison noted in the latency section.**
 
 ## Instruments
 
@@ -53,8 +54,9 @@ inference; this is the workload class the RP2350 resize artifact
 its section below). Gate-check scalar-vs-SIMD comparison pending (only
 the SIMD path is compiled in the shipping build).
 
-Inference latency is deterministic run-to-run (±1 ms window over 20-run
-warm benchmark and multi-hour live sessions).
+Inference latency is deterministic run-to-run (±1 ms window over a 20-run
+warm benchmark, invoked ad hoc via `ai_infer_bench()`, and multi-hour
+live sessions).
 
 ### Skip rate and average compute
 
