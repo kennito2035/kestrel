@@ -75,11 +75,26 @@ void SystemClock_Config(void);
 #endif
 // picture buffer (32-byte aligned so it can be D-cache invalidated cleanly:
 // DCMI DMA fills it, so the CPU must invalidate before reading now that AXI SRAM is cacheable)
+// NOTE: the dimensions read [FrameWidth][FrameHeight] but the pixel data is
+// row-major FrameHeight rows x FrameWidth columns, so &pic[n][0] is a byte
+// offset of n*FrameHeight*2, NOT n image rows (e.g. &pic[20][0] lands 15
+// true rows in at 160x120). The overlay math hard-codes the true offset;
+// change both together or neither.
 uint16_t pic[FrameWidth][FrameHeight] __attribute__((aligned(32)));
 /* Written in the DCMI frame-event ISR, polled in the main loop; must be
  * volatile so the poll re-reads memory (correct at -O0, required at -O2). */
 volatile uint32_t DCMI_FrameIsReady;
 volatile uint32_t Camera_FPS=0;
+/* A DCMI error (e.g. overrun) makes the HAL abort the DMA and never
+ * restart it: video freezes for good. The callback latches this flag and
+ * the main loop restarts the continuous capture. */
+volatile uint32_t DCMI_RestartNeeded;
+
+void HAL_DCMI_ErrorCallback(DCMI_HandleTypeDef *hdcmi_err)
+{
+  (void)hdcmi_err;
+  DCMI_RestartNeeded = 1;
+}
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -106,7 +121,8 @@ static void MPU_Config(void)
   MPU_InitStruct.SubRegionDisable = 0x00;
   HAL_MPU_ConfigRegion(&MPU_InitStruct);
 	
-  /* Configure the MPU attributes for the QSPI 8MB (QSPI Flash Size) to Cacheable WT */
+  /* Configure the MPU attributes for the QSPI 8MB (QSPI Flash Size) to
+   * Cacheable (TEX=1/C=1/B=1: write-back, write-allocate; fine for RO flash) */
   MPU_InitStruct.Enable           = MPU_REGION_ENABLE;
   MPU_InitStruct.Number           = MPU_REGION_NUMBER1;
   MPU_InitStruct.BaseAddress      = QSPI_BASE;
@@ -401,7 +417,7 @@ int main(void)
   HAL_DCMI_Start_DMA(&hdcmi, DCMI_MODE_CONTINUOUS, (uint32_t)&pic,
                      FrameWidth * FrameHeight * 2 / 4);
 
-  /* require K1 held for a full 2 seconds to start */
+  /* require K1 held for a full second to start */
   for (uint8_t k1_go = 0; !k1_go; )
   {
     if (HAL_GPIO_ReadPin(KEY_GPIO_Port, KEY_Pin) == GPIO_PIN_SET)
@@ -432,6 +448,13 @@ int main(void)
 
   MX_X_CUBE_AI_Process();
     /* USER CODE BEGIN 3 */
+    if (DCMI_RestartNeeded)
+    {
+      DCMI_RestartNeeded = 0;
+      uart_printf("dcmi,err,restart\r\n");
+      HAL_DCMI_Start_DMA(&hdcmi, DCMI_MODE_CONTINUOUS, (uint32_t)&pic,
+                         FrameWidth * FrameHeight * 2 / 4);
+    }
     if (DCMI_FrameIsReady)
     {
       DCMI_FrameIsReady = 0;
@@ -455,13 +478,14 @@ int main(void)
       static uint32_t w_idx = 0, w_sum = 0, w_pct = 0;
 
       /* K1: short tap (on release) toggles gating; hold >=1.5s shows the
-       * session stats card until released. */
+       * session stats card until released. k1_t0 == 0 means "no armed
+       * hold": the boot-gate hold and a K1 wake-press are swallowed. */
       static uint32_t k1_t0 = 0;
       static uint32_t s_frames = 0, s_skipped = 0, s_infer = 0; /* never reset */
       uint8_t k1 = (HAL_GPIO_ReadPin(KEY_GPIO_Port, KEY_Pin) == GPIO_PIN_SET);
       if (k1 && !k1_last)
         k1_t0 = HAL_GetTick();
-      if (k1 && k1_last && HAL_GetTick() - k1_t0 >= 1500)
+      if (k1 && k1_last && k1_t0 != 0 && HAL_GetTick() - k1_t0 >= 1500)
       {
         show_stats_card(s_frames, s_skipped, s_infer, gating_enabled, st_inf_ms);
         while (HAL_GPIO_ReadPin(KEY_GPIO_Port, KEY_Pin) == GPIO_PIN_SET) {}
@@ -469,7 +493,7 @@ int main(void)
         k1 = 0;                       /* consumed: no toggle on this release */
         DCMI_FrameIsReady = 0;        /* resume video cleanly */
       }
-      else if (!k1 && k1_last && HAL_GetTick() - k1_t0 < 1500)
+      else if (!k1 && k1_last && k1_t0 != 0 && HAL_GetTick() - k1_t0 < 1500)
       {
         gating_enabled ^= 1;
         g_total = 0;
@@ -603,7 +627,7 @@ int main(void)
           }
           if (vis < 4) vis++;
 
-          /* Stage-3 cascade: announce a confirmed person to the RP2350
+          /* Cascade: announce a confirmed person to the RP2350
            * (servo strike). Rate-limited so a person standing in frame
            * does not re-strike on every processed frame. */
           {
@@ -649,6 +673,10 @@ int main(void)
       #define SLEEP_IDLE_MS 10000
       else if (HAL_GetTick() - last_motion_tick > SLEEP_IDLE_MS)
       {
+        /* Arm the shutdown-window wake latch here: PC0/K1 edges before this
+         * point were seen while awake and fully handled; an edge from here
+         * to the WFI must abort the sleep instead of being consumed. */
+        stop_mode_wake_pending = 0;
         ST7735_LCD_Driver.FillRect(&st7735_pObj, 0, 0, ST7735Ctx.Width,
                                    ST7735Ctx.Height, BLACK);
         sprintf((char *)&text, "Press K1 to wake up.");
@@ -682,6 +710,9 @@ int main(void)
         stop_mode_sleep();   /* blocks in STOP until PC0 or K1 rises */
 
         k1_last = 1;         /* swallow a K1 wake-press: no gating toggle */
+        k1_t0 = 0;           /* and never treat it as an armed 1.5s hold */
+        vis = 0;             /* drop the pre-sleep box: re-confirm from scratch */
+        n_det = 0;
         uart_printf("stop,wake,%lu\r\n", HAL_GetTick());
 
         /* Camera back on (PWDN low), then a FULL re-init. Streaming does
@@ -696,6 +727,18 @@ int main(void)
         #elif TFT18
         Camera_Init_Device(&hi2c1, FRAMESIZE_QQVGA2);
         #endif
+        /* A failed SCCB probe (sensor not ready yet) leaves hcamera.addr
+         * == 0 and would restart capture on a dead bus: black frames until
+         * the next sleep cycle. Give the sensor more time and retry. */
+        for (int tries = 0; hcamera.addr == 0 && tries < 3; tries++)
+        {
+          HAL_Delay(50);
+          #ifdef TFT96
+          Camera_Init_Device(&hi2c1, FRAMESIZE_QQVGA);
+          #elif TFT18
+          Camera_Init_Device(&hi2c1, FRAMESIZE_QQVGA2);
+          #endif
+        }
 
         /* Panel wake: SLPOUT needs 120ms before further commands */
         {

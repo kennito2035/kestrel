@@ -40,10 +40,11 @@ static void uart_putc(char c)
   USART1->TDR = (uint8_t)c;
 }
 
-/* --- RAM log mirror: no-solder capture. Lives in RAM_D2 (.ram_log,
- * 0x30000000), survives reset. Extract after a session WITHOUT removing
- * power: hold BOOT0 + tap reset -> CubeProgrammer (USB DFU) -> read
- * device memory at 0x30000000 -> save .bin. Layout:
+/* --- RAM log mirror. Lives in DTCM (.ram_log, right after the gate
+ * buffers, ~0x20009600) and survives warm reset. The ROM DFU bootloader
+ * cannot read SRAM/DTCM on the H750 (see docs/troubleshooting.md), so
+ * extraction is the UART capture, or a debug probe reading &ramlog after
+ * reset if one is attached. Layout:
  *   [0] u32 magic 0x474F4C4B ("KLOG")  [1] u32 length  [8..] text data */
 #define RAMLOG_CAP  (80u * 1024u)   /* DTCM budget: 128K - 38K gate buffers */
 #define RAMLOG_MAGIC 0x474F4C4Bu

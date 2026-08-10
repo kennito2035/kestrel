@@ -169,8 +169,9 @@ SECTIONS
   } >DTCMRAM
 
   /* Kestrel: in-RAM log capture. DTCM: always clocked (no RCC gate),
-   * retained through reset, readable by the ROM bootloader -> dump via
-   * DFU memory read. Lands right after the gate buffers (~0x20009600). */
+   * retained through warm reset (not power loss). Lands right after the
+   * gate buffers (~0x20009600). The ROM DFU bootloader cannot read
+   * SRAM/DTCM, so extraction is over UART or a debug probe. */
   .ram_log (NOLOAD) :
   {
     . = ALIGN(4);

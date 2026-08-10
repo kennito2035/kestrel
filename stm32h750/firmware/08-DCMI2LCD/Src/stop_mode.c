@@ -8,6 +8,12 @@
 
 extern void SystemClock_Config(void);
 
+/* Set by the wake-source ISRs. A wake edge that fires while the CPU is
+ * still awake (the shutdown sequence takes ~850ms) would otherwise be
+ * consumed by the ISR and the motion event slept through; the latch lets
+ * stop_mode_sleep() detect it and skip the WFI instead. */
+volatile uint8_t stop_mode_wake_pending = 0;
+
 void stop_mode_init(void)
 {
   RCC->AHB4ENR |= RCC_AHB4ENR_GPIOCEN;
@@ -39,18 +45,34 @@ void stop_mode_init(void)
 void EXTI0_IRQHandler(void)
 {
   EXTI_D1->PR1 = 1U;   /* write-1-to-clear; waking is the side effect */
+  stop_mode_wake_pending = 1;
 }
 
 void EXTI15_10_IRQHandler(void)
 {
   EXTI_D1->PR1 = (0x3FU << 10);   /* clear lines 10..15 (K1 = 13) */
+  stop_mode_wake_pending = 1;
 }
 
 void stop_mode_sleep(void)
 {
-  HAL_SuspendTick();
-  HAL_PWR_EnterSTOPMode(PWR_LOWPOWERREGULATOR_ON, PWR_STOPENTRY_WFI);
-  /* --- asleep here until PC0 rising edge --- */
-  HAL_ResumeTick();
-  SystemClock_Config();   /* STOP exits on HSI: restore 480MHz PLL tree */
+  /* Race-free entry: with PRIMASK set, a wake edge in this window pends
+   * in the NVIC instead of running its ISR, and the WFI falls straight
+   * through (WFI wakes on a pending enabled interrupt even when masked). */
+  __disable_irq();
+  if (!stop_mode_wake_pending)
+  {
+    HAL_SuspendTick();
+    HAL_PWR_EnterSTOPMode(PWR_LOWPOWERREGULATOR_ON, PWR_STOPENTRY_WFI);
+    /* --- asleep here until PC0 or K1 rising edge --- */
+    HAL_ResumeTick();
+  }
+  __enable_irq();               /* a pended wake ISR runs right here */
+  stop_mode_wake_pending = 0;   /* consumed: we are awake either way */
+
+  /* STOP exits on HSI: restore the 480MHz PLL tree. Skipped when the WFI
+   * fell through on a pending wake: sysclk never left PLL1, and re-running
+   * the config against a live PLL would end in Error_Handler. */
+  if ((RCC->CFGR & RCC_CFGR_SWS) != RCC_CFGR_SWS_PLL1)
+    SystemClock_Config();
 }

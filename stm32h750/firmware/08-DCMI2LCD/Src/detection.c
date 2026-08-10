@@ -55,9 +55,9 @@ int detection_decode(const float *net_out, det_box_t *boxes, int max_boxes)
 
   det_last_max_score = 0.0f;
 
-  for (int row = 0; row < DET_GRID; row++)
+  for (int row = 0; row < DET_GRID && n_cand < DET_MAX_CAND; row++)
   {
-    for (int col = 0; col < DET_GRID; col++)
+    for (int col = 0; col < DET_GRID && n_cand < DET_MAX_CAND; col++)
     {
       const float *cell = net_out + ((row * DET_GRID) + col) * (DET_NB_ANCHORS * 6);
       for (int a = 0; a < DET_NB_ANCHORS; a++)

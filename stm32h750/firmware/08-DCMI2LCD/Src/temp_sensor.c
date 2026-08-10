@@ -23,7 +23,7 @@ static void ts_init(void)
   RCC->AHB4ENR |= RCC_AHB4ENR_ADC3EN;
   (void)RCC->AHB4ENR;
 
-  /* ADC kernel clock <- per_ck (HSI 64MHz); async mode, presc /8 */
+  /* ADC kernel clock <- per_ck (HSI 64MHz); async mode, presc /16 */
   RCC->D3CCIPR = (RCC->D3CCIPR & ~RCC_D3CCIPR_ADCSEL_Msk)
                | (2U << RCC_D3CCIPR_ADCSEL_Pos);
   ADC3_COMMON->CCR = (7U << ADC_CCR_PRESC_Pos) | ADC_CCR_TSEN; /* /16 = 4MHz */
