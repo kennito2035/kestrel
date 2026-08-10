@@ -29,7 +29,7 @@ training/dataset/coco/
 *.h5
 
 # Vendor reference material (WeAct SDK etc.), kept locally, not committed:
-# large binaries with their own licensing; see docs/day1_cubeide_bringup.md
+# large binaries with their own licensing
 third_party/
 
 # Personal planning/runbook files; stay on this machine, never pushed

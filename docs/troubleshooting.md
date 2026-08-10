@@ -159,8 +159,9 @@ CPU = 480 MHz, `HSE_VALUE` in `stm32h7xx_hal_conf.h` = 25000000.
   table (soft reset included) on wake restores boot-identical quality at
   ~0.4 s wake cost. A brief exposure settle in the first second after
   wake is normal AEC convergence, not this bug.
-- Wake sources: PC0 rising edge (RP2350 in Stage 3; jumper to 3V3 to fake
-  it) or K1. A K1 wake-press is swallowed so it doesn't toggle gating.
+- Wake sources: PC0 rising edge (the RP2350's PIR wake pulse; jumper PC0 to
+  3V3 to fake it with no RP2350 attached) or K1. A K1 wake-press is
+  swallowed so it doesn't toggle gating.
 
 ## RP2350 INTERP blend mode
 

@@ -1,8 +1,10 @@
 /*
  * DWT cycle-counter benchmark harness for the STM32H750 (Cortex-M7).
  *
- * Every performance number in the Kestrel README comes from this harness;
- * no simulator estimates, no projections. Wrap any stage:
+ * Every performance number in the Kestrel README comes from DWT cycle
+ * counts taken this way (the shipping firmware embeds the same pattern in
+ * ai_infer.c; this standalone harness packages it for reuse); no simulator
+ * estimates, no projections. Wrap any stage:
  *
  *     bench_init();                      // once, after clock config
  *     uint32_t t0 = bench_cycles();
@@ -19,11 +21,11 @@
 
 #include <stdint.h>
 
-/* Master switches (0 disables all benchmark code paths/output). */
+/* Master switch (0 disables all benchmark code paths/output). Skip-rate
+ * measurement needs no switch here: the shipping firmware unconditionally
+ * streams a `gate,...` CSV line every 16 frames; capture that and feed it
+ * to benchmarks/summarize.py. */
 #define BENCHMARK_ENABLE    1
-/* Log gate state + changed-pixel count every N frames for skip-rate
- * measurement (0 disables). Feed the CSV to benchmarks/summarize.py. */
-#define BENCHMARK_GATE_LOG  100
 
 void bench_init(void);
 uint32_t bench_cycles(void);

@@ -20,7 +20,7 @@ on every frame); model activations live in AXI SRAM, weights in QSPI.
 
 ```c
 for (;;) {
-    wait_for_frame();                       /* DCMI+DMA double buffer   */
+    wait_for_frame();                       /* DCMI+DMA circular buffer */
     grayscale_convert(frame_rgb565, gray_curr);
 
     uint32_t t0 = bench_cycles();
@@ -53,7 +53,7 @@ single most persuasive 10 seconds available for the demo video.
   (see wiring in the top-level README; the RP2350 wakes the H750,
   not the other way around).
 - After STOP, the clock tree restarts on HSI; re-run the PLL/clock config
-  before touching DCMI, and re-arm the DMA double buffer.
+  before touching DCMI, and re-arm the DCMI DMA (circular, single buffer).
 - Keep the previous grayscale frame across STOP (it's in DTCM, which is
   retained) so the first post-wake gate check is meaningful.
 - **Fail-open rule:** whenever there is no *valid* previous frame: first
@@ -68,6 +68,8 @@ single most persuasive 10 seconds available for the demo video.
 
 - `BENCHMARK_ENABLE 1`, per-stage CSV over UART (gate / grayscale /
   crop-resize / inference / display), DWT cycle counts.
-- `BENCHMARK_GATE_LOG 100`, gate state + changed-pixel count every 100
-  frames; run it on your real scene for ten minutes and you have your skip
-  rate and your threshold tuning data in one capture.
+- The shipping firmware streams a
+  `gate,<total>,<enabled>,<skipped>,<changed>,<state>,<det_ms>` CSV line
+  every 16 frames over UART; run it on your real scene for ten minutes and
+  you have your skip rate and your threshold tuning data in one capture
+  (feed the file to `benchmarks/summarize.py`).

@@ -259,6 +259,8 @@ Established techniques, included as correct practice (we do not claim them as no
 - **INT8 post-training quantization** via the ST Model Zoo / X-CUBE-AI pipeline. Model size,
   RAM, and accuracy from X-CUBE-AI Analyze: **`st_yololcv1` 192×192 INT8, 328 KiB Flash /
   160 KiB RAM, 62 M MACC, 34.7% AP (COCO-person, ST Model Zoo)**; on-device latency 180 ms.
+  (Analyze's flash total includes runtime kernel code; the committed weights blob alone is
+  283,368 B = 276.7 KiB, activations 155,168 B = 151.5 KiB.)
 - **X-CUBE-AI runtime kernels**: the `NetworkRuntime` library is partly CMSIS-NN-derived and
   partly ST-optimized per STM32 series; INT8 conv/depthwise ops use M7 SIMD/DSP instructions.
 - **Continuous DMA capture overlapping compute**: DCMI+DMA streams frames into the capture
@@ -356,9 +358,9 @@ kestrel/
 └── README.md
 ```
 
-Files marked *(bring-up)* are created during hardware bring-up (they depend
-on CubeIDE code generation for this specific board); everything in
-`modules/`, `rp2350/`, and the harnesses is written and host-tested in CI.
+The CubeIDE project under `stm32h750/firmware/` depends on code generation
+for this specific board; everything in `modules/`, `rp2350/`, and the
+harnesses is written and host-tested in CI.
 
 ---
 
@@ -366,7 +368,8 @@ on CubeIDE code generation for this specific board); everything in
 
 ### Prerequisites
 
-- STM32CubeIDE 1.15+ with X-CUBE-AI 9.0+ (Embedded Software Packages)
+- STM32CubeIDE 2.0.0+ with X-CUBE-AI 10.2.1 (Embedded Software Packages;
+  the committed project references the 10.2.1 pack paths and runtime library)
 - Raspberry Pi Pico SDK 2.x (for the RP2350)
 - Python 3.10+ (host tests and tooling)
 - Any C compiler on the host (only needed to run the gate module's unit tests)
@@ -402,7 +405,7 @@ CubeMX GUI, which silently emits empty stubs (see
 
 Build All (Ctrl+B) produces `Debug/08-DCMI2LCD.hex`. Flash over USB via
 the WeAct HID bootloader: hold **K1**, replug USB, release K1 at the
-slow LED blink, run `WeAct_HID_Flash` (WeAct MiniSTM32H7xx SDK) and
+slow LED blink, run `WeAct_HID_Flash_NETFW.exe` (WeAct MiniSTM32H7xx SDK) and
 select the hex; the board reboots into the app. Weights sit in
 memory-mapped QSPI flash via the linker script; activations live in AXI
 SRAM with room for the two 19KB grayscale gate buffers in DTCM.
@@ -429,8 +432,9 @@ to the pico-sdk firmware.
 ### Step 5: Validate
 
 1. Power both boards
-2. Static scene → TFT shows **GATE: CLOSED**, skip counter rising, H750 duty-cycling into STOP
-3. Move an object into frame → **GATE: OPEN**, bounding box drawn, latency HUD updates
+2. Static scene → the TFT HUD's bottom line shows **GATE: ON** with the live
+   skip percentage climbing, H750 duty-cycling into STOP
+3. Move an object into frame → the gate opens, bounding box drawn, latency HUD updates
 4. Remove the object → gate closes, system re-arms
 5. On `person` detection → servo on the RP2350 actuates
 6. Press the board's **K1 button (PC13)** to toggle gating off/on live; the HUD
@@ -454,8 +458,7 @@ python golden.py   # regenerates golden vectors and cross-checks the C results
 - **Skip rate:** the shipping firmware streams a `gate,...` CSV line every 16 frames over
   UART (PA9, 115200; the RP2350 cascade sketch echoes it to USB serial). Leave it running
   on your scene for 10+ minutes, capture the serial output to a file, and feed it to
-  `benchmarks/summarize.py` (the standalone module scaffold under `stm32h750/Core/` also
-  offers `BENCHMARK_GATE_LOG` for gate-only builds).
+  `benchmarks/summarize.py`.
 - **Interpolator vs software resize (RP2350):** flash
   `rp2350/arduino/kestrel_interp_bench/` (or the pico-sdk `interp_resize_bench`
   target); a single run times both paths and prints the CSV table, speedup and

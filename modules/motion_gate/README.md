@@ -44,7 +44,8 @@ min(width, height). Map detection coordinates back to the frame with
 - `open_count`: the smallest object you care about, in pixels, at your
   resolution. 0.5–1% of the frame is a good start.
 - Log `changed_count_out` over a few minutes of your real scene to pick both
-  (Kestrel's `BENCHMARK_GATE_LOG` does exactly this).
+  (Kestrel's periodic `gate,` CSV telemetry line does exactly this; see
+  `benchmarks/summarize.py`).
 
 ### Cost model
 
