@@ -451,9 +451,17 @@ int main(void)
     if (DCMI_RestartNeeded)
     {
       DCMI_RestartNeeded = 0;
-      uart_printf("dcmi,err,restart\r\n");
-      HAL_DCMI_Start_DMA(&hdcmi, DCMI_MODE_CONTINUOUS, (uint32_t)&pic,
-                         FrameWidth * FrameHeight * 2 / 4);
+      /* Full stop before the restart: the HAL error path leaves CAPTURE
+       * running with a dirty FIFO (and on the direct-mode-error route the
+       * DMA stream is still active), so a bare Start_DMA resumes mid-frame
+       * and the circular buffer stays phase-rolled for good. EN=0 flushes
+       * the FIFO and the fresh start waits for the next VSYNC. */
+      HAL_DCMI_Stop(&hdcmi);
+      if (HAL_DCMI_Start_DMA(&hdcmi, DCMI_MODE_CONTINUOUS, (uint32_t)&pic,
+                             FrameWidth * FrameHeight * 2 / 4) == HAL_OK)
+        uart_printf("dcmi,err,restart\r\n");
+      else
+        uart_printf("dcmi,err,restart_failed\r\n");
     }
     if (DCMI_FrameIsReady)
     {
@@ -818,7 +826,8 @@ void SystemClock_Config(void)
   /* HCLK 120MHz (480/4). Tried HCLK=240 (AXI bus 2x) for more AI speed but it
    * doubles the QSPI code-exec SCLK past the W25Q limit -> instant hard-fault.
    * Reverted. Revisit only after moving QSPI to its own PLL clock or verifying
-   * the SCLK margin; not worth it (165ms is already at kernel efficiency). */
+   * the SCLK margin; not worth it (the ~180ms QSPI-XIP inference is already
+   * at kernel efficiency). */
   RCC_ClkInitStruct.AHBCLKDivider = RCC_HCLK_DIV4;
   RCC_ClkInitStruct.APB3CLKDivider = RCC_APB3_DIV1;
   RCC_ClkInitStruct.APB1CLKDivider = RCC_APB1_DIV1;

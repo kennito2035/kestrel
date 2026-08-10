@@ -71,8 +71,9 @@ void stop_mode_sleep(void)
   stop_mode_wake_pending = 0;   /* consumed: we are awake either way */
 
   /* STOP exits on HSI: restore the 480MHz PLL tree. Skipped when the WFI
-   * fell through on a pending wake: sysclk never left PLL1, and re-running
-   * the config against a live PLL would end in Error_Handler. */
+   * fell through on a pending wake: sysclk never left PLL1, so the reconfig
+   * would be redundant work (the HAL tolerates re-running an identical PLL
+   * config; the check just keeps the fall-through path fast). */
   if ((RCC->CFGR & RCC_CFGR_SWS) != RCC_CFGR_SWS_PLL1)
     SystemClock_Config();
 }
