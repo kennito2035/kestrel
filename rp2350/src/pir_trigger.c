@@ -4,8 +4,7 @@
  * The HC-SR501 holds its output high for seconds per event, so a simple
  * rising-edge interrupt with a short wake pulse is enough; the H750's
  * frame-difference gate handles fine-grained activity from there. Between
- * events this core just sleeps in WFE via __wfe()-backed sleep functions,
- * keeping the always-on current in the low milliamps.
+ * events this core just sleeps in WFE via __wfe()-backed sleep functions.
  *
  * License: MIT (see repository root).
  */
@@ -40,11 +39,12 @@ void pir_trigger_task(void)
 
     while (true) {
         if (pir_fired) {
-            pir_fired = false;
             gpio_put(PIN_WAKE_OUT, 1);
             sleep_ms(WAKE_PULSE_MS);
             gpio_put(PIN_WAKE_OUT, 0);
             sleep_ms(RETRIGGER_HOLD_MS);
+            pir_fired = false; /* clear last: re-fires during the hold are
+                                  dropped, not queued as a second wake */
         }
         __wfe();
     }

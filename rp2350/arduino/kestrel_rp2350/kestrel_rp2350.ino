@@ -51,12 +51,13 @@ void setup() {
 
 void loop() {
   if (pirFired) {
-    pirFired = false;
     digitalWrite(PIN_WAKE_OUT, HIGH);
     delay(WAKE_PULSE_MS);
     digitalWrite(PIN_WAKE_OUT, LOW);
     pirWakeCount = pirWakeCount + 1;
     delay(RETRIGGER_HOLD_MS);
+    pirFired = false; // clear last: re-fires during the hold are dropped,
+                      // not queued as a second wake
   }
   delay(1);
 }
@@ -64,11 +65,18 @@ void loop() {
 // ---------- Core 1: detection events -> servo ----------
 // Protocol from the H750 (one ASCII line per event):
 //   DET,<class>,<confidence_pct>    e.g. DET,person,91
-//   GATE,<OPEN|CLOSED>,<changed_px> (telemetry, ignored here)
+//   gate,<total>,<enabled>,<skipped>,<changed>,<state>,<det_ms>
+//                                   (skip-rate telemetry, ignored here)
 
 Servo servo;
 String line;
+bool lineDiscard = false;
 uint32_t pirWakePrinted = 0;
+// Strike state: the hold is a deadline checked from loop1, never a blocking
+// delay, so Serial1 keeps draining during the 600 ms swing (a blocking hold
+// overflows the RX buffer in a few ms of continuous traffic).
+bool striking = false;
+uint32_t strikeEndMs = 0;
 
 void setup1() {
   Serial.begin(115200);  // USB CDC: transparent echo of H750 telemetry
@@ -81,28 +89,39 @@ void setup1() {
 void loop1() {
   // All USB prints happen on this core only (no cross-core interleaving).
   // H750 lines pass through verbatim, so capturing the Serial Monitor
-  // output doubles as the gate_results.csv evidence capture.
+  // output doubles as the skip-rate CSV capture for benchmarks/summarize.py.
   if (pirWakeCount != pirWakePrinted) {
     pirWakePrinted = pirWakeCount;
     Serial.printf("# PIR wake pulse %lu\n", (unsigned long)pirWakePrinted);
   }
+  if (striking && (int32_t)(millis() - strikeEndMs) >= 0) {
+    servo.writeMicroseconds(SERVO_REST_US);
+    striking = false;
+  }
   while (Serial1.available()) {
     char c = (char)Serial1.read();
     if (c == '\n' || c == '\r') {
-      if (line.length() > 0) {
-        Serial.println(line); // verbatim echo to USB
-      }
-      if (line.startsWith("DET,person,")) {
-        Serial.println("# strike");
-        servo.writeMicroseconds(SERVO_STRIKE_US); // the kestrel's dive
-        delay(STRIKE_HOLD_MS);
-        servo.writeMicroseconds(SERVO_REST_US);
+      if (lineDiscard) {
+        lineDiscard = false; // overlong line ends here: drop it whole
+      } else {
+        if (line.length() > 0) {
+          Serial.println(line); // verbatim echo to USB
+        }
+        if (line.startsWith("DET,person,")) {
+          Serial.println("# strike");
+          servo.writeMicroseconds(SERVO_STRIKE_US); // the kestrel's dive
+          strikeEndMs = millis() + STRIKE_HOLD_MS;
+          striking = true; // a DET mid-strike extends the hold
+        }
       }
       line = "";
+    } else if (lineDiscard) {
+      // still inside the overlong line: keep dropping
     } else if (line.length() < 63) {
       line += c;
     } else {
-      line = ""; // overlong line: discard and resync
+      line = "";
+      lineDiscard = true; // overlong line: discard through its terminator
     }
   }
 }
