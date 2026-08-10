@@ -1,8 +1,18 @@
 cmake_minimum_required(VERSION 3.13)
 
+# Default to the RP2350 board: a plain `cmake ..` would otherwise silently
+# configure for the RP2040 "pico" and the bootrom would reject the UF2.
+if(NOT PICO_BOARD AND NOT DEFINED ENV{PICO_BOARD})
+    set(PICO_BOARD pico2)
+endif()
+
 # Standard pico-sdk bootstrap: reads PICO_SDK_PATH from the environment or
 # the -DPICO_SDK_PATH=... cmake argument.
-include($ENV{PICO_SDK_PATH}/external/pico_sdk_import.cmake)
+if(DEFINED PICO_SDK_PATH)
+    include(${PICO_SDK_PATH}/external/pico_sdk_import.cmake)
+else()
+    include($ENV{PICO_SDK_PATH}/external/pico_sdk_import.cmake)
+endif()
 
 project(kestrel_rp2350 C CXX ASM)
 set(CMAKE_C_STANDARD 11)
@@ -22,6 +32,8 @@ target_link_libraries(kestrel_rp2350
     hardware_pwm
 )
 pico_enable_stdio_usb(kestrel_rp2350 1)
+# uart0 carries the H750 protocol link; keep stdio (and panic output) off it.
+pico_enable_stdio_uart(kestrel_rp2350 0)
 pico_add_extra_outputs(kestrel_rp2350)
 
 # Standalone benchmark: INTERP vs software bilinear resize

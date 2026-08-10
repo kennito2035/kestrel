@@ -41,8 +41,9 @@ void resize_bilinear_sw(const uint8_t *src, uint16_t src_w, uint16_t src_h,
                         uint8_t *dst);
 
 #if !defined(KESTREL_HOST_BUILD)
-/* INTERP-assisted path: INTERP0 blends the top pixel pair, INTERP1 the
- * bottom pair, final vertical blend in software. RP2040/RP2350 only. */
+/* INTERP-assisted path: blend mode exists on INTERP0 only (INTERP1 has
+ * clamp mode instead), so INTERP0 performs both horizontal lerps and the
+ * final vertical blend is done in software. RP2040/RP2350 only. */
 void resize_bilinear_interp(const uint8_t *src, uint16_t src_w, uint16_t src_h,
                             uint8_t *dst);
 #endif
