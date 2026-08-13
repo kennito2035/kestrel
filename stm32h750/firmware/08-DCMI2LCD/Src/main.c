@@ -651,7 +651,12 @@ int main(void)
         }
         else if (vis > 0)
         {
-          vis--;   /* fade out: survives single missed frames */
+          /* Fade fast: an OPEN frame with no detection is positive evidence
+           * of absence. -2 still tolerates a single missed frame (4 -> 2
+           * stays visible) but a real exit clears in two open frames
+           * instead of the box hanging until the next scene change. */
+          vis -= 2;
+          if (vis < 0) vis = 0;
         }
       }
       else
