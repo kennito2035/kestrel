@@ -33,15 +33,30 @@
 #define PRESENCE_HOLD_MS    2500
 #define LINE_MAX            64
 
-/* 50Hz servo PWM: divide sysclk down to a 1MHz tick, wrap 20000 -> 20ms. */
+/* 50Hz servo PWM: divide sysclk down to a 1MHz tick, wrap 20000 -> 20ms.
+ * Lazy start: the pin is held LOW and the slice stays disabled until the
+ * first detection, so the servo receives no pulses at boot and cannot do
+ * the power-on twitch. First pulses begin with the first sweep. */
 static void servo_init(void)
 {
-    gpio_set_function(PIN_SERVO, GPIO_FUNC_PWM);
+    gpio_init(PIN_SERVO);
+    gpio_set_dir(PIN_SERVO, GPIO_OUT);
+    gpio_put(PIN_SERVO, 0);
     const uint slice = pwm_gpio_to_slice_num(PIN_SERVO);
     pwm_set_clkdiv(slice, (float)clock_get_hz(clk_sys) / 1000000.0f);
     pwm_set_wrap(slice, 20000 - 1);
     pwm_set_gpio_level(PIN_SERVO, SERVO_REST_US);
-    pwm_set_enabled(slice, true);
+}
+
+static bool servo_started = false;
+
+static void servo_start_once(void)
+{
+    if (!servo_started) {
+        servo_started = true;
+        gpio_set_function(PIN_SERVO, GPIO_FUNC_PWM);
+        pwm_set_enabled(pwm_gpio_to_slice_num(PIN_SERVO), true);
+    }
 }
 
 static void servo_pulse_us(uint16_t us)
@@ -67,6 +82,7 @@ static void handle_line(const char *line)
     if (strncmp(line + 4, "person,", 7) == 0) {
         presence_end = make_timeout_time_ms(PRESENCE_HOLD_MS);
         if (!sweeping) {
+            servo_start_once();
             sweeping = true;
             next_step = get_absolute_time();
         }

@@ -82,6 +82,7 @@ uint32_t pirWakePrinted = 0;
 // delay, so Serial1 keeps draining during the sweep (a blocking wait
 // overflows the RX buffer in a few ms of continuous traffic).
 bool sweeping = false;
+bool servoAttached = false;
 uint32_t presenceEndMs = 0;
 uint32_t nextStepMs = 0;
 int sweepPosUs = SERVO_REST_US;
@@ -90,8 +91,11 @@ int sweepDir = 1;
 void setup1() {
   Serial.begin(115200);  // USB CDC: transparent echo of H750 telemetry
   Serial1.begin(115200); // UART0: TX=GP0, RX=GP1 (arduino-pico defaults)
-  servo.attach(PIN_SERVO, 500, 2500);
-  servo.writeMicroseconds(SERVO_REST_US);
+  // Lazy servo start: line held LOW, no attach until the first detection,
+  // so the servo receives no pulses at boot and cannot do the power-on
+  // attach-center twitch.
+  pinMode(PIN_SERVO, OUTPUT);
+  digitalWrite(PIN_SERVO, LOW);
   line.reserve(64);
 }
 
@@ -134,6 +138,11 @@ void loop1() {
           Serial.println("# sweep");
           presenceEndMs = millis() + PRESENCE_HOLD_MS;
           if (!sweeping) { // a DET mid-sweep just extends the window
+            if (!servoAttached) {
+              servoAttached = true;
+              servo.attach(PIN_SERVO, 500, 2500);
+              servo.writeMicroseconds(sweepPosUs); // preempt the center default
+            }
             sweeping = true;
             nextStepMs = millis();
           }
