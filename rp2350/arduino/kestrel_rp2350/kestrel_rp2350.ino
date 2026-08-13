@@ -33,7 +33,10 @@ const int WAKE_PULSE_MS = 50;
 const int RETRIGGER_HOLD_MS = 2000; // ignore PIR re-fires while H750 wakes
 const int SERVO_REST_US = 1000;
 const int SERVO_STRIKE_US = 2000;
-const int STRIKE_HOLD_MS = 600;
+// Longer than the H750's 2 s DET rate limit, so a person who stays in
+// frame HOLDS the strike (each DET extends the deadline) instead of the
+// servo cycling strike/rest every 2 s. Release ~2.5 s after the last DET.
+const int STRIKE_HOLD_MS = 2500;
 
 // ---------- Core 0: PIR pre-screen ----------
 
@@ -73,7 +76,7 @@ String line;
 bool lineDiscard = false;
 uint32_t pirWakePrinted = 0;
 // Strike state: the hold is a deadline checked from loop1, never a blocking
-// delay, so Serial1 keeps draining during the 600 ms swing (a blocking hold
+// delay, so Serial1 keeps draining during the held swing (a blocking hold
 // overflows the RX buffer in a few ms of continuous traffic).
 bool striking = false;
 uint32_t strikeEndMs = 0;

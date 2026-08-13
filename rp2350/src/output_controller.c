@@ -24,7 +24,10 @@
 
 #define SERVO_REST_US    1000
 #define SERVO_STRIKE_US  2000
-#define STRIKE_HOLD_MS   600
+/* Longer than the H750's 2 s DET rate limit, so a person who stays in
+ * frame HOLDS the strike (each DET extends the deadline) instead of the
+ * servo cycling strike/rest every 2 s. Release ~2.5 s after the last DET. */
+#define STRIKE_HOLD_MS   2500
 #define LINE_MAX         64
 
 /* 50Hz servo PWM: divide sysclk down to a 1MHz tick, wrap 20000 -> 20ms. */
@@ -44,7 +47,7 @@ static void servo_pulse_us(uint16_t us)
 }
 
 /* Strike state: the hold is a deadline checked from the main loop, never a
- * blocking sleep, so the UART keeps draining during the 600 ms swing (a
+ * blocking sleep, so the UART keeps draining during the held swing (a
  * blocking hold overflows the RX FIFO in ~3 ms of continuous traffic). */
 static bool striking = false;
 static absolute_time_t strike_end;
