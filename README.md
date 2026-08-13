@@ -353,6 +353,7 @@ kestrel/
 │   ├── gate_module_guide.md        # STM32 pipeline integration + STOP mode
 │   ├── rp2350_interpolator_guide.md
 │   └── hardware/                   # Board pinout references
+├── assets/branding/                # Logo glyphs + video thumbnail
 ├── .github/workflows/host-tests.yml# CI: host tests + Cortex-M cross-compile
 ├── LICENSE                         # MIT
 └── README.md
