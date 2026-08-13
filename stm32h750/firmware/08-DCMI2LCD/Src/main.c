@@ -635,9 +635,10 @@ int main(void)
           }
           if (vis < 4) vis++;
 
-          /* Cascade: announce a confirmed person to the RP2350
-           * (servo strike). Rate-limited so a person standing in frame
-           * does not re-strike on every processed frame. */
+          /* Cascade: announce a confirmed person to the RP2350 (servo
+           * response). Rate-limited so a person standing in frame does
+           * not spam the link on every processed frame; the RP2350 side
+           * treats each DET as an extension of its presence window. */
           {
             static uint32_t last_det_tick;
             if (vis >= 2 && HAL_GetTick() - last_det_tick > 2000)

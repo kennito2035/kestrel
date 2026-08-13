@@ -9,8 +9,8 @@
  *     gate,<total>,<enabled>,<skipped>,<changed>,<state>,<det_ms>\n
  *                                         (skip-rate telemetry, ignored here)
  *
- * A `person` detection swings the servo to STRIKE for a moment, then
- * returns to REST, the kestrel's dive.
+ * A `person` detection starts a continuous 0-180 degree servo sweep that
+ * runs for as long as detections keep arriving, then returns to REST.
  *
  * License: MIT (see repository root).
  */
@@ -22,13 +22,16 @@
 #include "hardware/clocks.h"
 #include "kestrel_pins.h"
 
-#define SERVO_REST_US    1000
-#define SERVO_STRIKE_US  2000
-/* Longer than the H750's 2 s DET rate limit, so a person who stays in
- * frame HOLDS the strike (each DET extends the deadline) instead of the
- * servo cycling strike/rest every 2 s. Release ~2.5 s after the last DET. */
-#define STRIKE_HOLD_MS   2500
-#define LINE_MAX         64
+#define SERVO_REST_US       1000
+#define SERVO_SWEEP_MIN_US  500   /* ~0 degrees at the servo's full range */
+#define SERVO_SWEEP_MAX_US  2500  /* ~180 degrees */
+#define SWEEP_TICK_MS       15    /* one step per tick */
+#define SWEEP_STEP_US       40    /* full sweep in ~0.75 s per direction */
+/* Presence window: longer than the H750's 2 s DET rate limit, so a person
+ * who stays in frame keeps the sweep alive (each DET extends the deadline);
+ * the servo rests ~2.5 s after the last detection. */
+#define PRESENCE_HOLD_MS    2500
+#define LINE_MAX            64
 
 /* 50Hz servo PWM: divide sysclk down to a 1MHz tick, wrap 20000 -> 20ms. */
 static void servo_init(void)
@@ -46,11 +49,14 @@ static void servo_pulse_us(uint16_t us)
     pwm_set_gpio_level(PIN_SERVO, us);
 }
 
-/* Strike state: the hold is a deadline checked from the main loop, never a
- * blocking sleep, so the UART keeps draining during the held swing (a
- * blocking hold overflows the RX FIFO in ~3 ms of continuous traffic). */
-static bool striking = false;
-static absolute_time_t strike_end;
+/* Sweep state: all deadlines are checked from the main loop, never a
+ * blocking sleep, so the UART keeps draining during the sweep (a blocking
+ * wait overflows the RX FIFO in ~3 ms of continuous traffic). */
+static bool sweeping = false;
+static absolute_time_t presence_end;
+static absolute_time_t next_step;
+static int32_t sweep_pos_us = SERVO_REST_US;
+static int32_t sweep_dir = 1;
 
 static void handle_line(const char *line)
 {
@@ -59,9 +65,11 @@ static void handle_line(const char *line)
         return;
     }
     if (strncmp(line + 4, "person,", 7) == 0) {
-        servo_pulse_us(SERVO_STRIKE_US);
-        strike_end = make_timeout_time_ms(STRIKE_HOLD_MS);
-        striking = true; /* a DET mid-strike extends the hold */
+        presence_end = make_timeout_time_ms(PRESENCE_HOLD_MS);
+        if (!sweeping) {
+            sweeping = true;
+            next_step = get_absolute_time();
+        }
     }
 }
 
@@ -77,9 +85,23 @@ void output_controller_task(void)
     servo_init();
 
     while (true) {
-        if (striking && time_reached(strike_end)) {
-            servo_pulse_us(SERVO_REST_US);
-            striking = false;
+        if (sweeping) {
+            if (time_reached(presence_end)) {
+                sweeping = false;
+                servo_pulse_us(SERVO_REST_US);
+            } else if (time_reached(next_step)) {
+                next_step = make_timeout_time_ms(SWEEP_TICK_MS);
+                sweep_pos_us += sweep_dir * SWEEP_STEP_US;
+                if (sweep_pos_us >= SERVO_SWEEP_MAX_US) {
+                    sweep_pos_us = SERVO_SWEEP_MAX_US;
+                    sweep_dir = -1;
+                }
+                if (sweep_pos_us <= SERVO_SWEEP_MIN_US) {
+                    sweep_pos_us = SERVO_SWEEP_MIN_US;
+                    sweep_dir = 1;
+                }
+                servo_pulse_us((uint16_t)sweep_pos_us);
+            }
         }
         if (!uart_is_readable(KESTREL_UART)) {
             continue;

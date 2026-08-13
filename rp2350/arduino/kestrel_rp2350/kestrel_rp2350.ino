@@ -3,7 +3,7 @@
  *
  * Functionally identical to the pico-sdk firmware in rp2350/src/:
  *   core 0 (setup/loop):   PIR pre-screen -> H750 wake pulse
- *   core 1 (setup1/loop1): UART detection events -> servo strike
+ *   core 1 (setup1/loop1): UART detection events -> servo sweep
  * Plus a bring-up aid: every H750 UART line is echoed verbatim to the
  * USB serial port (115200), so the board doubles as a UART-to-USB
  * bridge for capturing the H750's CSV telemetry; PIR wake pulses are
@@ -32,11 +32,14 @@ const int PIN_WAKE_OUT = 15; // -> H750 PC0 (EXTI wake)
 const int WAKE_PULSE_MS = 50;
 const int RETRIGGER_HOLD_MS = 2000; // ignore PIR re-fires while H750 wakes
 const int SERVO_REST_US = 1000;
-const int SERVO_STRIKE_US = 2000;
-// Longer than the H750's 2 s DET rate limit, so a person who stays in
-// frame HOLDS the strike (each DET extends the deadline) instead of the
-// servo cycling strike/rest every 2 s. Release ~2.5 s after the last DET.
-const int STRIKE_HOLD_MS = 2500;
+const int SERVO_SWEEP_MIN_US = 500;  // ~0 degrees at the servo's full range
+const int SERVO_SWEEP_MAX_US = 2500; // ~180 degrees
+const int SWEEP_TICK_MS = 15;        // one step per tick
+const int SWEEP_STEP_US = 40;        // full sweep in ~0.75 s per direction
+// Presence window: longer than the H750's 2 s DET rate limit, so a person
+// who stays in frame keeps the sweep alive (each DET extends the deadline);
+// the servo rests ~2.5 s after the last detection.
+const int PRESENCE_HOLD_MS = 2500;
 
 // ---------- Core 0: PIR pre-screen ----------
 
@@ -75,11 +78,14 @@ Servo servo;
 String line;
 bool lineDiscard = false;
 uint32_t pirWakePrinted = 0;
-// Strike state: the hold is a deadline checked from loop1, never a blocking
-// delay, so Serial1 keeps draining during the held swing (a blocking hold
+// Sweep state: all deadlines are checked from loop1, never a blocking
+// delay, so Serial1 keeps draining during the sweep (a blocking wait
 // overflows the RX buffer in a few ms of continuous traffic).
-bool striking = false;
-uint32_t strikeEndMs = 0;
+bool sweeping = false;
+uint32_t presenceEndMs = 0;
+uint32_t nextStepMs = 0;
+int sweepPosUs = SERVO_REST_US;
+int sweepDir = 1;
 
 void setup1() {
   Serial.begin(115200);  // USB CDC: transparent echo of H750 telemetry
@@ -97,9 +103,23 @@ void loop1() {
     pirWakePrinted = pirWakeCount;
     Serial.printf("# PIR wake pulse %lu\n", (unsigned long)pirWakePrinted);
   }
-  if (striking && (int32_t)(millis() - strikeEndMs) >= 0) {
-    servo.writeMicroseconds(SERVO_REST_US);
-    striking = false;
+  if (sweeping) {
+    if ((int32_t)(millis() - presenceEndMs) >= 0) {
+      sweeping = false;
+      servo.writeMicroseconds(SERVO_REST_US);
+    } else if ((int32_t)(millis() - nextStepMs) >= 0) {
+      nextStepMs = millis() + SWEEP_TICK_MS;
+      sweepPosUs += sweepDir * SWEEP_STEP_US;
+      if (sweepPosUs >= SERVO_SWEEP_MAX_US) {
+        sweepPosUs = SERVO_SWEEP_MAX_US;
+        sweepDir = -1;
+      }
+      if (sweepPosUs <= SERVO_SWEEP_MIN_US) {
+        sweepPosUs = SERVO_SWEEP_MIN_US;
+        sweepDir = 1;
+      }
+      servo.writeMicroseconds(sweepPosUs);
+    }
   }
   while (Serial1.available()) {
     char c = (char)Serial1.read();
@@ -111,10 +131,12 @@ void loop1() {
           Serial.println(line); // verbatim echo to USB
         }
         if (line.startsWith("DET,person,")) {
-          Serial.println("# strike");
-          servo.writeMicroseconds(SERVO_STRIKE_US); // the kestrel's dive
-          strikeEndMs = millis() + STRIKE_HOLD_MS;
-          striking = true; // a DET mid-strike extends the hold
+          Serial.println("# sweep");
+          presenceEndMs = millis() + PRESENCE_HOLD_MS;
+          if (!sweeping) { // a DET mid-sweep just extends the window
+            sweeping = true;
+            nextStepMs = millis();
+          }
         }
       }
       line = "";
