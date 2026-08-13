@@ -628,10 +628,13 @@ int main(void)
           }
           else
           {
-            sx += 0.4f * (det[0].x - sx);
-            sy += 0.4f * (det[0].y - sy);
-            sw += 0.4f * (det[0].w - sw);
-            sh += 0.4f * (det[0].h - sh);
+            /* 0.6 blend: at ~5 processed FPS a walking person outruns a
+             * heavier smooth; the clean model input made per-hit jitter
+             * small enough that snappier tracking wins. */
+            sx += 0.6f * (det[0].x - sx);
+            sy += 0.6f * (det[0].y - sy);
+            sw += 0.6f * (det[0].w - sw);
+            sh += 0.6f * (det[0].h - sh);
           }
           if (vis < 4) vis++;
 

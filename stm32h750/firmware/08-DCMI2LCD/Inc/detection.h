@@ -12,7 +12,11 @@
 
 #define DET_GRID          12
 #define DET_NB_ANCHORS    5
-#define DET_CONF_THRESH   0.68f
+/* 0.68 was tuned on the pre-fix (corrupted) bilinear input; the clean
+ * input holds 77-99% on a standing person but dips mid-stride, so 0.62
+ * keeps hits alive during motion. Watch an empty scene for false boxes
+ * after changing this; raise it back toward 0.68 if any appear. */
+#define DET_CONF_THRESH   0.62f
 #define DET_IOU_THRESH    0.45f
 #define DET_MAX_BOXES     8
 /* Empirical size calibration: head predicts slightly oversized boxes */
