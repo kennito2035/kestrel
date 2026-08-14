@@ -56,17 +56,24 @@ static uint32_t row_changed_scalar(const uint8_t *curr, const uint8_t *prev,
  * with identical codegen (still a single LDR); elsewhere a little-endian
  * byte assembly keeps the build legal C99 and folds to a load on any
  * toolchain that matters (Cortex-M is little-endian). */
-#if defined(__GNUC__)
+#if defined(__GNUC__) && !defined(GATE_FORCE_PORTABLE_LOAD)
+#define GATE_INDEXED_LOADS 1
 /* Direct indexed loads through the may_alias type, NOT a helper function:
  * under "#pragma GCC optimize" GCC can refuse to inline even same-pragma
  * helpers, and the resulting real calls (two per iteration) measurably
- * slowed pass 1 from 109 us to 249 us per gate check on the H750. Caught
- * by the on-target harness; keep loads as expressions in the loop. */
+ * slowed pass 1 from 109 us to 249 us per gate check on the H750. The
+ * standing enforcement of this shape is the on-target harness, which
+ * re-prints both path timings at every boot. */
 typedef uint32_t __attribute__((may_alias)) gate_word_alias_t;
 #else
-/* Non-GNU fallback: little-endian byte assembly, legal C99 everywhere
- * (Cortex-M is little-endian); performance on these toolchains is
- * neither measured nor claimed. */
+#define GATE_INDEXED_LOADS 0
+/* Portable fallback: byte assembly, legal C99 everywhere. Lane order is
+ * irrelevant to correctness: every SIMD op below is lane-wise with
+ * uniform constants and USADA8 sums all lanes, so any consistent byte
+ * order yields the same count (both frames load the same way).
+ * Performance on this path is neither measured nor claimed. Any GNU
+ * toolchain can compile it with -DGATE_FORCE_PORTABLE_LOAD (CI does,
+ * compile-only) so the branch stays tested rather than aspirational. */
 static uint32_t gate_load_word(const uint8_t *p)
 {
     return (uint32_t)p[0] | ((uint32_t)p[1] << 8) |
@@ -93,12 +100,12 @@ static uint32_t row_changed_simd(const uint8_t *curr, const uint8_t *prev,
     const uint32_t ones = 0x01010101u;
     uint32_t count = 0;
 
-#if defined(__GNUC__)
+#if GATE_INDEXED_LOADS
     const gate_word_alias_t *a = (const gate_word_alias_t *)(const void *)curr;
     const gate_word_alias_t *b = (const gate_word_alias_t *)(const void *)prev;
 #endif
     for (uint16_t i = 0; i < width / 4u; i++) {
-#if defined(__GNUC__)
+#if GATE_INDEXED_LOADS
         const uint32_t av = a[i];
         const uint32_t bv = b[i];
 #else
@@ -125,7 +132,11 @@ static uint32_t row_changed(const uint8_t *curr, const uint8_t *prev,
     return row_changed_scalar(curr, prev, width, thr);
 }
 
-/* Pad the raw bbox, grow it to a square, clamp it inside the frame. */
+/* Pad the raw bbox, grow it to a square, clamp it inside the frame.
+ * Deliberate: the bbox is the full extent of ANY change, isolated noise
+ * pixels included; there is no per-row noise floor. Failing wide fails
+ * toward more context for the detector, and pixel_threshold tuning (see
+ * the README) is the intended noise control. */
 static void build_roi(const gate_config_t *cfg,
                       int32_t x_min, int32_t x_max,
                       int32_t y_min, int32_t y_max,

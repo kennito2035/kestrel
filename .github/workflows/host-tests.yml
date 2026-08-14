@@ -36,3 +36,9 @@ jobs:
               -Wall -Wextra -Werror -O2 -c modules/motion_gate/gate.c -o /tmp/gate_m7.o
           arm-none-eabi-gcc -std=c99 -mcpu=cortex-m33 -mthumb -DKESTREL_GATE_SIMD=1 \
               -Wall -Wextra -Werror -O2 -c modules/motion_gate/gate.c -o /tmp/gate_m33.o
+
+      - name: Gate module compiles with the portable load fallback forced
+        run: |
+          arm-none-eabi-gcc -std=c99 -mcpu=cortex-m7 -mthumb -DKESTREL_GATE_SIMD=1 \
+              -DGATE_FORCE_PORTABLE_LOAD=1 \
+              -Wall -Wextra -Werror -O2 -c modules/motion_gate/gate.c -o /tmp/gate_m7_portable.o
