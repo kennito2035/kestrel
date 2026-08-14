@@ -1,9 +1,9 @@
 # Kestrel Benchmark Report
 
 **Every number in this report is measured on
-hardware (July 13-21); the cascade is wired and functionally verified
-end to end. No projected numbers remain; the one open measurement is the
-gate scalar-vs-SIMD timing comparison noted in the latency section.**
+hardware (July 13 - August 14); the cascade is wired and functionally
+verified end to end. No projected numbers and no open measurements
+remain.**
 
 ## Instruments
 
@@ -51,8 +51,15 @@ the correct instruments at this scale.
 Note: the **software resize (12.6 ms)** is the second-largest cost after
 inference; this is the workload class the RP2350 resize artifact
 (`rp2350/`) characterizes for RP2350-hosted cameras (measured verdict in
-its section below). Gate-check scalar-vs-SIMD comparison pending (only
-the SIMD path is compiled in the shipping build).
+its section below). Gate-check scalar vs SIMD, measured August 14 via
+the in-firmware `gate_bench.c` harness (the same `gate.c` source
+compiled both ways, entry renamed, 100-rep warm loop on live 160x120
+frames, DWT-timed at 480 MHz): **scalar 364 us, SIMD 109 us, a 3.3x
+speedup**. The warm loop isolates compute, so both figures sit below
+the 173 us in-pipeline per-frame number, which additionally carries
+QSPI-XIP instruction-cache effects; the shipping build uses the SIMD
+path, and the harness prints its `bench,gate,...` line once per boot
+so any serial capture reproduces this row.
 
 Inference latency is deterministic run-to-run (±1 ms window over a 20-run
 warm benchmark, invoked ad hoc via `ai_infer_bench()`, and multi-hour
