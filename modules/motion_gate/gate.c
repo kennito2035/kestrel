@@ -44,17 +44,18 @@ static uint32_t row_changed_scalar(const uint8_t *curr, const uint8_t *prev,
  * plain uint32_t lvalue is undefined behavior under strict aliasing, and
  * GCC at -O2 on ARM is exactly where that can miscompile. On GNU-style
  * compilers (GCC, armclang) a may_alias word type makes the access legal
- * with identical codegen (still a single LDR); elsewhere a little-endian
- * byte assembly keeps the build legal C99 and folds to a load on any
- * toolchain that matters (Cortex-M is little-endian). */
+ * with identical codegen (still a single LDR); elsewhere a byte-assembly
+ * fallback keeps the build legal C99 (byte order does not matter here;
+ * see the fallback's own comment). */
 #if defined(__GNUC__) && !defined(GATE_FORCE_PORTABLE_LOAD)
 #define GATE_INDEXED_LOADS 1
 /* Direct indexed loads through the may_alias type, NOT a helper function:
  * under "#pragma GCC optimize" GCC can refuse to inline even same-pragma
  * helpers, and the resulting real calls (two per iteration) measurably
  * slowed pass 1 from 109 us to 249 us per gate check on the H750. The
- * standing enforcement of this shape is the on-target harness, which
- * re-prints both path timings at every boot. */
+ * guard for this shape is detection, not build-time enforcement: the
+ * on-target harness re-prints both path timings at every boot; compare
+ * against the published row in benchmarks/benchmark_report.md. */
 typedef uint32_t __attribute__((may_alias)) gate_word_alias_t;
 #else
 #define GATE_INDEXED_LOADS 0
@@ -63,8 +64,10 @@ typedef uint32_t __attribute__((may_alias)) gate_word_alias_t;
  * uniform constants and USADA8 sums all lanes, so any consistent byte
  * order yields the same count (both frames load the same way).
  * Performance on this path is neither measured nor claimed. Any GNU
- * toolchain can compile it with -DGATE_FORCE_PORTABLE_LOAD (CI does,
- * compile-only) so the branch stays tested rather than aspirational. */
+ * toolchain can compile it with -DGATE_FORCE_PORTABLE_LOAD; CI builds
+ * this branch in its Cortex-M7 CROSS-COMPILE leg (on a host build the
+ * whole SIMD block preprocesses away, so the flag only has meaning under
+ * __ARM_FEATURE_SIMD32), keeping it tested rather than aspirational. */
 static uint32_t gate_load_word(const uint8_t *p)
 {
     return (uint32_t)p[0] | ((uint32_t)p[1] << 8) |
@@ -125,9 +128,12 @@ static uint32_t row_changed(const uint8_t *curr, const uint8_t *prev,
 
 /* Pad the raw bbox, grow it to a square, clamp it inside the frame.
  * Deliberate: the bbox is the full extent of ANY change, isolated noise
- * pixels included; there is no per-row noise floor. Failing wide fails
- * toward more context for the detector, and pixel_threshold tuning (see
- * the README) is the intended noise control. */
+ * pixels included; there is no per-row noise floor. The degenerate case
+ * (noise pixels near opposite corners) blows the ROI up to max_side and
+ * forfeits the digital-zoom benefit for that frame: equal to the ungated
+ * full-frame baseline, never worse than it, but a real cost rather than
+ * free context. pixel_threshold tuning (see the README) is the intended
+ * control. */
 static void build_roi(const gate_config_t *cfg,
                       int32_t x_min, int32_t x_max,
                       int32_t y_min, int32_t y_max,
