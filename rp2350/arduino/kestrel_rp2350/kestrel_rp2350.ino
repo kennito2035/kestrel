@@ -138,6 +138,11 @@ void loop1() {
           Serial.println("# sweep");
           presenceEndMs = millis() + PRESENCE_HOLD_MS;
           if (!sweeping) { // a DET mid-sweep just extends the window
+            // The arm physically rests at SERVO_REST_US between episodes;
+            // restart the sweep from there or the first step snaps it to
+            // the stale position where the last sweep happened to end.
+            sweepPosUs = SERVO_REST_US;
+            sweepDir = 1;
             if (!servoAttached) {
               servoAttached = true;
               servo.attach(PIN_SERVO, 500, 2500);

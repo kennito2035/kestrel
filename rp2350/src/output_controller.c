@@ -84,6 +84,11 @@ static void handle_line(const char *line)
         if (!sweeping) {
             servo_start_once();
             sweeping = true;
+            /* The arm physically rests at SERVO_REST_US between episodes;
+             * restart the sweep from there or the first step snaps it to
+             * the stale position where the last sweep happened to end. */
+            sweep_pos_us = SERVO_REST_US;
+            sweep_dir = 1;
             next_step = get_absolute_time();
         }
     }
