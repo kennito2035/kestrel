@@ -48,13 +48,17 @@ static uint32_t row_changed_scalar(const uint8_t *curr, const uint8_t *prev,
  * byte assembly keeps the build legal C99 and folds to a load on any
  * toolchain that matters (Cortex-M is little-endian). */
 #if defined(__GNUC__)
+/* Direct indexed loads through the may_alias type, NOT a helper function:
+ * under "#pragma GCC optimize" GCC can refuse to inline even same-pragma
+ * helpers, and the resulting real calls (two per iteration) measurably
+ * slowed pass 1 from 109 us to 249 us per gate check on the H750. Caught
+ * by the on-target harness; keep loads as expressions in the loop. */
 typedef uint32_t __attribute__((may_alias)) gate_word_alias_t;
-static inline uint32_t gate_load_word(const uint8_t *p)
-{
-    return *(const gate_word_alias_t *)(const void *)p;
-}
 #else
-static inline uint32_t gate_load_word(const uint8_t *p)
+/* Non-GNU fallback: little-endian byte assembly, legal C99 everywhere
+ * (Cortex-M is little-endian); performance on these toolchains is
+ * neither measured nor claimed. */
+static uint32_t gate_load_word(const uint8_t *p)
 {
     return (uint32_t)p[0] | ((uint32_t)p[1] << 8) |
            ((uint32_t)p[2] << 16) | ((uint32_t)p[3] << 24);
@@ -80,9 +84,18 @@ static uint32_t row_changed_simd(const uint8_t *curr, const uint8_t *prev,
     const uint32_t ones = 0x01010101u;
     uint32_t count = 0;
 
+#if defined(__GNUC__)
+    const gate_word_alias_t *a = (const gate_word_alias_t *)(const void *)curr;
+    const gate_word_alias_t *b = (const gate_word_alias_t *)(const void *)prev;
+#endif
     for (uint16_t i = 0; i < width / 4u; i++) {
+#if defined(__GNUC__)
+        const uint32_t av = a[i];
+        const uint32_t bv = b[i];
+#else
         const uint32_t av = gate_load_word(curr + 4u * (uint32_t)i);
         const uint32_t bv = gate_load_word(prev + 4u * (uint32_t)i);
+#endif
         uint32_t d = __uqsub8(av, bv) | __uqsub8(bv, av);
         (void)__usub8(d, thr1);              /* sets GE flags per byte */
         count = __usada8(__sel(ones, 0u), 0u, count);
