@@ -58,8 +58,9 @@ frames, DWT-timed at 480 MHz): **scalar 364 us, SIMD 109 us, a 3.3x
 speedup**. The warm loop isolates compute, so both figures sit below
 the 173 us in-pipeline per-frame number, which additionally carries
 QSPI-XIP instruction-cache effects; the shipping build uses the SIMD
-path, and the harness prints its `bench,gate,...` line once per boot
-so any serial capture reproduces this row.
+path, and the harness prints its `bench,gate,...` line (timings plus a
+scalar-vs-SIMD bit-exactness match flag) once per boot, so any serial
+capture reproduces this row.
 
 Inference latency is deterministic run-to-run (±1 ms window over a 20-run
 warm benchmark, invoked ad hoc via `ai_infer_bench()`, and multi-hour

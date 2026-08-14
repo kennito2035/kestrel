@@ -74,4 +74,6 @@ exercises it. Measured head to head on the H750 (Cortex-M7 @ 480 MHz,
 160x120 frames, the same source compiled both ways by the firmware's
 `gate_bench.c` harness): scalar 364 us, SIMD 109 us per gate check,
 a 3.3x speedup (method and caveats in
-`benchmarks/benchmark_report.md`).
+`benchmarks/benchmark_report.md`). The same harness cross-checks the
+two paths for bit-exactness on live and pseudorandom frames at every
+boot and reports the result in its printed line.

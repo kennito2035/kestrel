@@ -40,6 +40,14 @@ static uint32_t row_changed_scalar(const uint8_t *curr, const uint8_t *prev,
 }
 
 #if GATE_HAVE_SIMD
+/* Word type for the 4-byte loads. Reading the byte frames through a plain
+ * uint32_t lvalue is undefined behavior under strict aliasing, and GCC at
+ * -O2 on ARM is exactly where that can miscompile; may_alias makes the
+ * access legal without changing codegen (still a single LDR). The SIMD
+ * path already requires ACLE, so the GCC attribute costs no portability
+ * the path did not already spend. */
+typedef uint32_t __attribute__((may_alias)) gate_word_alias_t;
+
 /*
  * 4 pixels per iteration:
  *   absdiff per byte:  d = UQSUB8(a,b) | UQSUB8(b,a)
@@ -47,13 +55,14 @@ static uint32_t row_changed_scalar(const uint8_t *curr, const uint8_t *prev,
  *                      d >= thr+1  (i.e. d > thr), SEL then picks 0x01
  *                      for changed bytes and 0x00 otherwise
  *   count:             USADA8 accumulates the 0x01 bytes
- * Bit-exact with row_changed_scalar.
+ * Bit-exact with row_changed_scalar (cross-checked on target by the
+ * firmware's gate_bench harness every boot).
  */
 static uint32_t row_changed_simd(const uint8_t *curr, const uint8_t *prev,
                                  uint16_t width, uint8_t thr)
 {
-    const uint32_t *a = (const uint32_t *)(const void *)curr;
-    const uint32_t *b = (const uint32_t *)(const void *)prev;
+    const gate_word_alias_t *a = (const gate_word_alias_t *)(const void *)curr;
+    const gate_word_alias_t *b = (const gate_word_alias_t *)(const void *)prev;
     const uint32_t thr1 = ((uint32_t)thr + 1u) * 0x01010101u;
     const uint32_t ones = 0x01010101u;
     uint32_t count = 0;

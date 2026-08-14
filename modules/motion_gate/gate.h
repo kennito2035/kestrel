@@ -65,9 +65,11 @@ typedef enum {
  * Compare two grayscale frames (width*height bytes each).
  *
  * Returns GATE_OPEN and fills *roi_out when at least cfg->open_count pixels
- * changed; returns GATE_CLOSED otherwise (*roi_out untouched).
- * *changed_count_out (optional, may be NULL) always receives the number of
- * changed pixels, useful for threshold tuning and skip-rate logging.
+ * changed; returns GATE_CLOSED otherwise (*roi_out untouched). A frame with
+ * zero changed pixels never opens the gate, even when open_count is 0.
+ * roi_out must be non-NULL. *changed_count_out (optional, may be NULL)
+ * always receives the number of changed pixels, useful for threshold
+ * tuning and skip-rate logging.
  */
 gate_state_t gate_check(const gate_config_t *cfg,
                         const uint8_t *curr,
