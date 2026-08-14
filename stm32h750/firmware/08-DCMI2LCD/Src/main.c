@@ -248,14 +248,20 @@ static void show_stats_card(uint32_t frames, uint32_t skipped,
   (void)infers;
 }
 
-/* Draws a 1px rectangle outline on the LCD viewport, clipped to 160x80. */
+/* Draws a 1px rectangle outline on the LCD viewport, clipped to 160x80.
+ * The panel shows only 80 of the frame's 120 rows, so a confirmed box can
+ * sit (partly) outside the visible crop; rather than vanish while the HUD
+ * text says "P: 1", it pins as a small marker at the nearest pane edge. */
 static void draw_box_px(int x0, int y0, int x1, int y1, uint16_t color)
 {
   if (x0 < 0) x0 = 0;
   if (y0 < 0) y0 = 0;
+  if (x0 > 157) x0 = 157;
+  if (y0 > 77)  y0 = 77;
   if (x1 > 159) x1 = 159;
   if (y1 > 79)  y1 = 79;
-  if (x1 <= x0 || y1 <= y0) return;
+  if (x1 < x0 + 2) x1 = x0 + 2;
+  if (y1 < y0 + 2) y1 = y0 + 2;
 
   int w = x1 - x0 + 1, h = y1 - y0 + 1;
   ST7735_LCD_Driver.FillRect(&st7735_pObj, x0, y0, w, 1, color);
