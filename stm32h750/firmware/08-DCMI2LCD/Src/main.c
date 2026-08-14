@@ -35,6 +35,7 @@
 #include "detection.h"
 #include "img_preproc.h"
 #include "gate.h"
+#include "gate_bench.h"
 #include "uart_log.h"
 #include "stop_mode.h"
 #include "temp_sensor.h"
@@ -683,6 +684,16 @@ int main(void)
       /* swap gray frames; from now on the gate has real history */
       { uint8_t *t = gray_curr; gray_curr = gray_prev; gray_prev = t; }
       gate_prev_valid = 1;
+
+      /* One-shot scalar-vs-SIMD gate timing on live frames, ~4 s after
+       * start; prints a single bench, line (the evidence behind the
+       * comparison in benchmarks/benchmark_report.md). */
+      static uint8_t gate_bench_done = 0;
+      if (!gate_bench_done && g_total >= 64)
+      {
+        gate_bench_done = 1;
+        gate_bench_run(&gate_cfg, gray_curr, gray_prev);
+      }
 
       /* --- STOP mode: 10s with zero motion -> deep sleep, PC0 wakes --- */
       static uint32_t last_motion_tick = 0;
