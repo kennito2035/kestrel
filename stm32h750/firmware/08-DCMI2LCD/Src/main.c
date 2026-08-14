@@ -556,7 +556,16 @@ int main(void)
        * kept alive briefly through single missed frames. */
       static float sx, sy, sw, sh;
       static int vis = 0;   /* confidence/TTL counter */
-      if (vis >= 2)
+      static uint32_t box_hit_tick = 0;   /* tick of the last real detection */
+      /* Show the box only with BOTH recent confirmations (vis) and wall-time
+       * recency: a fast exit can register motion in a single processed frame,
+       * leaving vis at the display threshold with the gate closed forever
+       * after, which froze a box over an empty scene. The 3 s window mirrors
+       * the servo's presence hold; a re-detection restores the box in two
+       * processed frames. */
+      const uint8_t box_live = (vis >= 2) &&
+                               (HAL_GetTick() - box_hit_tick <= 3000u);
+      if (box_live)
       {
         int cx = (int)(sx * 160.0f);
         int cy = (int)(sy * 120.0f) - 15;
@@ -572,7 +581,7 @@ int main(void)
         shown_n = n_det;
         shown_conf = (int)(det[0].score * 100.0f);
       }
-      if (vis >= 2)
+      if (box_live)
         sprintf((char *)&text, "P: %d, %d%% conf, %lums",
                 shown_n, shown_conf, det_ms);
       else
@@ -644,6 +653,7 @@ int main(void)
             sh += 0.6f * (det[0].h - sh);
           }
           if (vis < 4) vis++;
+          box_hit_tick = HAL_GetTick();
 
           /* Cascade: announce a confirmed person to the RP2350 (servo
            * response). Rate-limited so a person standing in frame does
