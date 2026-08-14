@@ -55,12 +55,14 @@ its section below). Gate-check scalar vs SIMD, measured August 14 via
 the in-firmware `gate_bench.c` harness (the same `gate.c` source
 compiled both ways, entry renamed, 100-rep warm loop on live 160x120
 frames of a static scene so only pass 1 runs, DWT-timed at 480 MHz):
-**scalar 364 us, SIMD 109 us, a 3.3x speedup**. A gate-open scene adds
+**scalar 364 us, SIMD 99 us, a 3.7x speedup**. A gate-open scene adds
 the pass-2 scan to both paths and compresses the ratio, so reproduce
-this row with the camera on a still scene. The warm loop isolates compute, so both figures sit below
-the 173 us in-pipeline per-frame number, which additionally carries
-QSPI-XIP instruction-cache effects; the shipping build uses the SIMD
-path, and the harness prints its `bench,gate,...` line (timings plus a
+this row with the camera on a still scene. The warm loop isolates
+compute, so both figures sit below the in-pipeline per-frame number
+(173 us as measured in July; the stats card shows the live value for
+whichever build is flashed), which additionally carries QSPI-XIP
+instruction-cache effects; the shipping build uses the SIMD path, and
+the harness prints its `bench,gate,...` line (timings plus a
 scalar-vs-SIMD bit-exactness match flag) once per boot, so any serial
 capture reproduces this row.
 
