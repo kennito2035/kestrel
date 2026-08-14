@@ -49,13 +49,26 @@ static uint32_t row_changed_scalar(const uint8_t *curr, const uint8_t *prev,
 }
 
 #if GATE_HAVE_SIMD
-/* Word type for the 4-byte loads. Reading the byte frames through a plain
- * uint32_t lvalue is undefined behavior under strict aliasing, and GCC at
- * -O2 on ARM is exactly where that can miscompile; may_alias makes the
- * access legal without changing codegen (still a single LDR). The SIMD
- * path already requires ACLE, so the GCC attribute costs no portability
- * the path did not already spend. */
+/* Aligned 4-byte load from the byte frames. Reading the bytes through a
+ * plain uint32_t lvalue is undefined behavior under strict aliasing, and
+ * GCC at -O2 on ARM is exactly where that can miscompile. On GNU-style
+ * compilers (GCC, armclang) a may_alias word type makes the access legal
+ * with identical codegen (still a single LDR); elsewhere a little-endian
+ * byte assembly keeps the build legal C99 and folds to a load on any
+ * toolchain that matters (Cortex-M is little-endian). */
+#if defined(__GNUC__)
 typedef uint32_t __attribute__((may_alias)) gate_word_alias_t;
+static inline uint32_t gate_load_word(const uint8_t *p)
+{
+    return *(const gate_word_alias_t *)(const void *)p;
+}
+#else
+static inline uint32_t gate_load_word(const uint8_t *p)
+{
+    return (uint32_t)p[0] | ((uint32_t)p[1] << 8) |
+           ((uint32_t)p[2] << 16) | ((uint32_t)p[3] << 24);
+}
+#endif
 
 /*
  * 4 pixels per iteration:
@@ -64,20 +77,22 @@ typedef uint32_t __attribute__((may_alias)) gate_word_alias_t;
  *                      d >= thr+1  (i.e. d > thr), SEL then picks 0x01
  *                      for changed bytes and 0x00 otherwise
  *   count:             USADA8 accumulates the 0x01 bytes
- * Bit-exact with row_changed_scalar (cross-checked on target by the
- * firmware's gate_bench harness every boot).
+ * Bit-exact with row_changed_scalar. The authoritative cross-check runs
+ * on target: the firmware's gate_bench harness compares both paths at
+ * every boot. SIMD32 cannot execute on a PC host, so host CI can only
+ * compile this path, never run it.
  */
 static uint32_t row_changed_simd(const uint8_t *curr, const uint8_t *prev,
                                  uint16_t width, uint8_t thr)
 {
-    const gate_word_alias_t *a = (const gate_word_alias_t *)(const void *)curr;
-    const gate_word_alias_t *b = (const gate_word_alias_t *)(const void *)prev;
     const uint32_t thr1 = ((uint32_t)thr + 1u) * 0x01010101u;
     const uint32_t ones = 0x01010101u;
     uint32_t count = 0;
 
     for (uint16_t i = 0; i < width / 4u; i++) {
-        uint32_t d = __uqsub8(a[i], b[i]) | __uqsub8(b[i], a[i]);
+        const uint32_t av = gate_load_word(curr + 4u * (uint32_t)i);
+        const uint32_t bv = gate_load_word(prev + 4u * (uint32_t)i);
+        uint32_t d = __uqsub8(av, bv) | __uqsub8(bv, av);
         (void)__usub8(d, thr1);              /* sets GE flags per byte */
         count = __usada8(__sel(ones, 0u), 0u, count);
     }
@@ -191,6 +206,15 @@ gate_state_t gate_check(const gate_config_t *cfg,
                 break;
             }
         }
+    }
+
+    /* Defensive invariant guard: pass 1 (possibly SIMD) said these rows
+     * changed, so this scalar rescan must find a pixel. If the paths ever
+     * disagree (miscompile, single-path edit), fail open to a full-frame
+     * ROI rather than building a plausible box from garbage bounds. */
+    if (x_max < x_min) {
+        x_min = 0;
+        x_max = (int32_t)cfg->width - 1;
     }
 
     build_roi(cfg, x_min, x_max, y_min, y_max, roi_out);

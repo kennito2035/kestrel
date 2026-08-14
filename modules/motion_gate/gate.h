@@ -1,9 +1,10 @@
 /*
  * Kestrel motion gate, frame-difference inference gating + attention ROI.
  *
- * Pure C99, no dependencies, no allocation, no float. Drop into any
- * Cortex-M (or other) camera pipeline that produces consecutive 8-bit
- * grayscale frames.
+ * No allocation, no float, no dependencies. The scalar path is pure
+ * C99 and runs anywhere; the optional SIMD fast path additionally
+ * needs ACLE (arm_acle.h). Drop into any Cortex-M (or other) camera
+ * pipeline that produces consecutive 8-bit grayscale frames.
  *
  * Usage:
  *   gate_config_t cfg = {
