@@ -9,6 +9,7 @@
 [![Platform](https://img.shields.io/badge/Platform-Arm%20Cortex--M7%20%2B%20M33-blue.svg)]()
 [![Track](https://img.shields.io/badge/Track-Physical%20AI-green.svg)]()
 [![Hackathon](https://img.shields.io/badge/Arm%20Create-AI%20Optimization%20Challenge%202026-orange.svg)]()
+[![Hackathon](https://img.shields.io/badge/VoltHacks-2026-blueviolet.svg)]()
 
 > **A kestrel hovers motionless, watching, spending nothing, then strikes
 > only when something moves, only where it moved.**
