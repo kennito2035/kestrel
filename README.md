@@ -5,15 +5,32 @@
 # Kestrel
 ### Motion-Gated Object Detection on Arm Cortex-M: spend compute only when, and where, something moves
 
+[![Hackathon](https://img.shields.io/badge/VoltHacks-2026-blueviolet.svg)](https://volthacks.devpost.com/)
+[![Hackathon](https://img.shields.io/badge/Arm%20Create-AI%20Optimization%20Challenge%202026-orange.svg)](https://arm-ai-optimization-challenge.devpost.com/)
+[![Platform](https://img.shields.io/badge/Platform-Arm%20Cortex--M7%20%2B%20M33-blue.svg)](#hardware)
+[![CI](https://github.com/kennito2035/kestrel/actions/workflows/host-tests.yml/badge.svg)](https://github.com/kennito2035/kestrel/actions/workflows/host-tests.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-[![Platform](https://img.shields.io/badge/Platform-Arm%20Cortex--M7%20%2B%20M33-blue.svg)]()
-[![Track](https://img.shields.io/badge/Track-Physical%20AI-green.svg)]()
-[![Hackathon](https://img.shields.io/badge/Arm%20Create-AI%20Optimization%20Challenge%202026-orange.svg)]()
-[![Hackathon](https://img.shields.io/badge/VoltHacks-2026-blueviolet.svg)]()
 
 > **A kestrel hovers motionless, watching, spending nothing, then strikes
 > only when something moves, only where it moved.**
 > Event-driven object detection on Arm Cortex-M. Smarter, not just faster.
+
+<p align="center">
+  <img src="assets/photos/rig.jpg" width="720" alt="The complete two-board rig: STM32H750 with camera and display, PIR sensor, RP2350 on the breadboard, servo, battery">
+</p>
+
+**In plain English**
+
+- **What it is:** a person-detecting camera built on two microcontrollers. No cloud, no operating system, no video leaving the device.
+- **Who it is for:** battery-powered trail and remote-site cameras first, and any porch camera or occupancy sensor that spends most of its life looking at nothing.
+- **What was measured:** 98 to 99% of neural-network runs skipped on real scenes, idle draw cut 2.96x, processor 10 C cooler, all measured on the hardware.
+- **What it does when it sees a person:** wakes, confirms with the network, and drives the servo, the hook for a light, a latch, or a radio.
+
+**The problem.** Cameras that think are expensive to keep awake. A trail camera or a remote-site
+camera spends almost all of its life looking at a scene where nothing is happening, and the
+standard embedded-vision design runs a full neural network on every frame anyway: on this
+hardware, 180 milliseconds of compute and over a watt, five times a second, forever. The cost
+shows up as bigger batteries, bigger solar panels, hotter enclosures, and shorter deployments.
 
 **Reproducing or evaluating this project?** Start with
 [`docs/troubleshooting.md`](docs/troubleshooting.md): every build, flash and
@@ -50,10 +67,11 @@ shrink it. Those techniques are necessary; Kestrel applies them, but they optimi
 of *one inference*. Kestrel optimizes the *system*: it asks "should we even run inference right
 now, and on which pixels?" On scenes with intermittent motion, average compute scales with the
 **activity of the scene** rather than the frame rate, a reduction no amount of model
-compression can reach on its own, with zero accuracy loss, because active frames still get
-full inference.
+compression can reach on its own, with no loss on moving subjects, because every frame with
+motion still gets full inference (a subject that stops moving is re-confirmed on its next
+motion; see Known limits below).
 
-### Why it should win
+### What is new here
 
 - **Motion-gated inference with ROI attention** has been described in research since 2017
   (Fast YOLO, arXiv:1709.05943; AmphibianDetector, arXiv:2011.07513), but we found no public
@@ -74,11 +92,11 @@ full inference.
   counters, or meter readings noted in the report) and the exact harness code included. No
   projected numbers.
 
-### Physical AI track fit
+### Design pillars, and where each is delivered
 
 Kestrel is a complete **sense → decide → act** loop under real power constraints:
 
-| Track pillar | Where Kestrel delivers it |
+| Pillar | Where Kestrel delivers it |
 |---|---|
 | Deterministic real-time performance | Bare-metal, no OS, no scheduler jitter; fixed-cost gate and inference paths; inference holds a **178-181 ms window** across multi-hour sessions (no latency tail to report) |
 | Efficient, scalable compute | Three-level attention cascade, each watcher orders of magnitude cheaper than the next; average compute scales with scene activity |
@@ -105,6 +123,16 @@ better-than-±1% class; our power claims are 1.3×–3.0× ratios, far above any
 instrument error). We do not use Arm Performix here: Performix targets Arm64 Linux systems
 (Neoverse/cloud) and cannot attach to bare-metal Cortex-M. For this class of device, cycle
 counters and ammeters are the correct instruments.
+
+**Known limits.** The skip rates were measured on two fixed indoor scenes; outdoors, wind,
+shadows and rain will open the gate more often, and a false open costs one 180 ms inference,
+not accuracy (a false close is the real risk, and the PIR is the independent backstop). A
+person who stops moving lets the gate close: the last result is held (box for 3 s, servo for
+2.5 s) and the person is re-confirmed on their next motion, where an always-on detector would
+keep reporting them. No per-frame accuracy run was done on these scenes; the claim is that
+gating removes no motion frames from inference, not that the detector is state of the art.
+The watcher board draws 92 mA, more than the sleeping main board (82 mA); it is deliberately
+unoptimized in this build (dormant mode is on the roadmap).
 
 ---
 
@@ -209,7 +237,7 @@ every inference call:
   region, padded to square and clamped to frame bounds, ready to crop-and-resize into the
   model's input tensor. The detector sees the moving object at maximum resolution instead of
   a full-frame downscale.
-- **Deployable anywhere:** pure C99, resolution-independent, ~150 lines, host-testable
+- **Deployable anywhere:** pure C99, resolution-independent, ~240 lines, host-testable
   (`modules/motion_gate/test/` runs on a PC), with an optional Cortex-M7 SIMD path
   (`__USADA8`) behind a compile flag.
 
@@ -378,7 +406,7 @@ apps themselves build in their own toolchains (CubeIDE, pico-sdk/Arduino).
 - Any C compiler on the host (only needed to run the gate module's unit tests)
 
 ```bash
-git clone https://github.com/YOUR_USERNAME/kestrel.git
+git clone https://github.com/kennito2035/kestrel.git
 cd kestrel
 ```
 
@@ -495,6 +523,9 @@ python golden.py   # regenerates golden vectors and cross-checks the C results
   scenes. Established in research; no bare-metal Cortex-M implementation found.
 - **OV2640 hardware windowing:** push the ROI crop into the sensor itself via SCCB, saving
   the DCMI bandwidth as well.
+- **RP2350 dormant mode:** put the watcher board to sleep between PIR events so the cheapest
+  tier of the cascade is also the cheapest at idle (it draws 92 mA today, more than the
+  sleeping main board).
 
 ---
 
